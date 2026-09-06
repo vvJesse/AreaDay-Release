@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "backend": "onnxruntime",
+  "repository": "sentence-transformers/all-MiniLM-L6-v2",
+  "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "model_file": "onnx/model.onnx",
+  "tokenizer_file": "tokenizer.json",
+  "embedding_dimension": 384,
+  "max_sequence_length": 256,
+  "pooling": "mean",
+  "normalize_embeddings": true,
+  "asset_endpoint": null,
+  "asset_layout": "{endpoint}/{repository}/resolve/{revision}/{relative_path}",
+  "license": "Apache-2.0",
+  "spacy_wheel": {
+    "filename": "en_core_web_sm-3.8.0-py3-none-any.whl",
+    "sha256": "1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85",
+    "asset_path": "python/en_core_web_sm-3.8.0-py3-none-any.whl",
+    "official_url": "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
+  },
+  "files": {
+    "onnx/model.onnx": "6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452",
+    "tokenizer.json": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037"
+  }
+}
