@@ -611,8 +611,6 @@ async function updateTerm(itemId, status) {
   busy = true;
   try {
     await persistTermStatus(itemId, status);
-    if (currentPaper) currentPaper = await request(`/api/paper?id=${encodeURIComponent(currentPaper.item_id)}`);
-    if (currentPaper && currentView === "paper") renderPaperTerminology(currentPaper);
     await loadReview({ continueSession: false });
   } catch (error) { showError(error); }
   finally { busy = false; }
@@ -802,7 +800,7 @@ function renderBriefEdition(brief) {
     itemCopy.append(itemTitle, reason);
     const meta = document.createElement("span"); meta.className = "brief-item-meta";
     const badge = document.createElement("span"); badge.className = "source-badge"; badge.textContent = itemTypeLabel(item.item_type);
-    const effort = document.createElement("span"); effort.textContent = `${item.estimated_minutes} 分钟 · ${item.estimated_unfamiliar_words || 0} 个生词 · ${item.estimated_terms || 0} 个术语`;
+    const effort = document.createElement("span"); effort.textContent = `${item.estimated_minutes} 分钟 · ${item.estimated_unfamiliar_words || 0} 个生词`;
     meta.append(badge, effort);
     button.append(rank, itemCopy, meta);
     items.appendChild(button);
@@ -914,7 +912,7 @@ function clearBriefFilters() {
   renderBriefResults();
 }
 
-async function openPaper(paperId) {
+async function openPaper(paperId, { preserveView = false } = {}) {
   currentPaper = await request(`/api/paper?id=${encodeURIComponent(paperId)}`);
   const paper = currentPaper;
   setText("paperType", itemTypeLabel(paper.item_type));
@@ -924,15 +922,13 @@ async function openPaper(paperId) {
   setText("paperValue", paper.value_reason);
   setText("paperMinutes", paper.estimated_minutes);
   setText("paperWordCount", paper.vocabulary.length);
-  setText("paperTermCount", paper.terminology.length);
   byId("openSourceLink").href = paper.source_url;
   const paragraphs = String(paper.shadow_preview).split(/\n\s*\n/).filter(Boolean);
   byId("shadowPreview").replaceChildren(...paragraphs.map((text) => {
     const p = document.createElement("p"); p.textContent = text; return p;
   }));
   renderPaperVocabulary(paper);
-  renderPaperTerminology(paper);
-  showView("paper");
+  if (!preserveView) showView("paper");
 }
 
 function renderPaperVocabulary(paper) {
@@ -960,47 +956,18 @@ function renderPaperVocabulary(paper) {
       const knownButton = document.createElement("button"); knownButton.className = "text-button"; knownButton.type = "button"; knownButton.textContent = "我已掌握，不再复习";
       knownButton.addEventListener("click", async () => {
         await request("/api/learning/mastered", { method: "POST", body: JSON.stringify({ item_type: "word", item_id: word.item_id, paper_id: paper.item_id }) });
-        await openPaper(paper.item_id);
+        await openPaper(paper.item_id, { preserveView: true });
       });
       actions.appendChild(knownButton);
     } else {
       const restore = document.createElement("button"); restore.className = "text-button"; restore.type = "button"; restore.textContent = "恢复复习";
       restore.addEventListener("click", async () => {
         await request("/api/learning/restore", { method: "POST", body: JSON.stringify({ item_id: word.item_id }) });
-        await openPaper(paper.item_id);
+        await openPaper(paper.item_id, { preserveView: true });
       });
       actions.appendChild(restore);
     }
     row.appendChild(actions);
-    container.appendChild(row);
-  }
-}
-
-function renderPaperTerminology(paper) {
-  const container = byId("paperTerminology");
-  container.replaceChildren();
-  setText("paperTermSummary", `${paper.terminology.length} 个术语`);
-  for (const term of paper.terminology) {
-    const row = document.createElement("article");
-    row.className = `vocabulary-row${term.global_status === "mastered" ? " vocabulary-known" : ""}`;
-    const head = document.createElement("div"); head.className = "vocabulary-row-head";
-    const name = document.createElement("strong"); name.textContent = term.term;
-    const status = document.createElement("small"); status.textContent = termStatusLabel(term.global_status);
-    head.append(name, status);
-    const meaningEn = document.createElement("p"); meaningEn.className = "meaning-en"; meaningEn.textContent = term.meaning_en;
-    const meaningZh = document.createElement("p"); meaningZh.textContent = term.meaning_zh;
-    const context = document.createElement("div"); context.className = "vocabulary-context"; context.textContent = term.context;
-    const actions = document.createElement("div"); actions.className = "vocabulary-row-actions";
-    if (term.global_status === "new") {
-      const understood = document.createElement("button"); understood.className = "text-button"; understood.type = "button"; understood.textContent = "我已经理解"; understood.addEventListener("click", () => updateTerm(term.item_id, "mastered"));
-      const learn = document.createElement("button"); learn.className = "text-button"; learn.type = "button"; learn.textContent = "需要学习"; learn.addEventListener("click", () => updateTerm(term.item_id, "learning"));
-      actions.append(understood, learn);
-    } else if (term.global_status === "learning") {
-      const mastered = document.createElement("button"); mastered.className = "text-button"; mastered.type = "button"; mastered.textContent = "我已理解，不再复习"; mastered.addEventListener("click", () => updateTerm(term.item_id, "mastered")); actions.appendChild(mastered);
-    } else {
-      const restore = document.createElement("button"); restore.className = "text-button"; restore.type = "button"; restore.textContent = "恢复复习"; restore.addEventListener("click", () => updateTerm(term.item_id, "restore")); actions.appendChild(restore);
-    }
-    row.append(head, meaningEn, meaningZh, context, actions);
     container.appendChild(row);
   }
 }

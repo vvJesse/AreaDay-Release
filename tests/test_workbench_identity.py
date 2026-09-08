@@ -194,6 +194,25 @@ class WorkbenchLifecycleTests(unittest.TestCase):
         self.assertIn("长时间未操作，AreaDay 已自动关闭", script)
         self.assertIn("请在 Codex 或 WorkBuddy 中重新打开 AreaDay", script)
 
+    def test_brief_paper_shows_word_counts_without_article_term_counts(self) -> None:
+        page = (ROOT / "app" / "static" / "index.html").read_text(encoding="utf-8")
+        script = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('id="paperWordCount"', page)
+        self.assertNotIn('id="paperTermCount"', page)
+        self.assertNotIn('id="paperTerminology"', page)
+        self.assertIn("个生词`;", script)
+        self.assertNotIn("个生词 · ${item.estimated_terms", script)
+
+    def test_paper_word_status_refresh_preserves_the_current_view(self) -> None:
+        script = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('if (!preserveView) showView("paper")', script)
+        self.assertEqual(
+            script.count("openPaper(paper.item_id, { preserveView: true })"),
+            2,
+        )
+
     def test_calibration_page_explains_the_next_question_wait(self) -> None:
         page = (ROOT / "app" / "static" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "app" / "static" / "app.js").read_text(encoding="utf-8")
