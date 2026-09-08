@@ -1,4 +1,4 @@
-"""Deterministic metadata discovery helpers for ResearchRamp."""
+"""Deterministic metadata discovery helpers for AreaDay."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import configparser
 import hashlib
 import json
 import re
+import shutil
 import time
 import urllib.error
 import urllib.parse
@@ -16,7 +17,8 @@ from typing import Any, Iterable
 
 
 OPENALEX_API = "https://api.openalex.org/works"
-RESEARCHRAMP_CREDENTIALS = Path.home() / ".researchramp" / "credentials.ini"
+AREADAY_CREDENTIALS = Path.home() / ".areaday" / "credentials.ini"
+LEGACY_CREDENTIALS = Path.home() / ".researchramp" / "credentials.ini"
 ARXIV_ID_RE = re.compile(
     r"(?:arxiv(?:\.org/(?:abs|pdf)/|:)|10\.48550/arxiv\.)("
     r"(?:[a-z][a-z.\-]+/\d{7})|(?:\d{4}\.\d{4,5})"
@@ -50,25 +52,30 @@ def write_jsonl(path: Path, values: Iterable[dict[str, Any]]) -> None:
 
 
 def load_openalex_api_key() -> str | None:
-    """Read the one ResearchRamp-owned OpenAlex configuration."""
-    if not RESEARCHRAMP_CREDENTIALS.is_file():
+    """Read the one AreaDay-owned OpenAlex configuration."""
+    credentials = AREADAY_CREDENTIALS
+    if not credentials.is_file() and LEGACY_CREDENTIALS.is_file():
+        credentials.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(LEGACY_CREDENTIALS, credentials)
+        credentials.chmod(0o600)
+    if not credentials.is_file():
         raise RuntimeError(
-            "OpenAlex setup is incomplete. Complete the one-time ResearchRamp "
-            f"configuration file first: {RESEARCHRAMP_CREDENTIALS}"
+            "OpenAlex setup is incomplete. Complete the one-time AreaDay "
+            f"configuration file first: {credentials}"
         )
     parser = configparser.ConfigParser(interpolation=None)
     try:
-        with RESEARCHRAMP_CREDENTIALS.open(encoding="utf-8") as handle:
+        with credentials.open(encoding="utf-8") as handle:
             parser.read_file(handle)
     except configparser.Error as exc:
-        raise ValueError("ResearchRamp OpenAlex configuration is malformed") from exc
+        raise ValueError("AreaDay OpenAlex configuration is malformed") from exc
     if not parser.has_section("openalex"):
-        raise ValueError("ResearchRamp credentials do not contain [openalex]")
+        raise ValueError("AreaDay credentials do not contain [openalex]")
     api_key = parser.get("openalex", "api_key", fallback="").strip()
     if api_key.lower() == "anonymous":
         return None
     if not re.fullmatch(r"[A-Za-z0-9_-]{12,200}", api_key):
-        raise ValueError("ResearchRamp contains an invalid OpenAlex API key")
+        raise ValueError("AreaDay contains an invalid OpenAlex API key")
     return api_key
 
 
@@ -272,7 +279,7 @@ class OpenAlexClient:
             return read_json(cache_path)
 
         url = OPENALEX_API + "?" + urllib.parse.urlencode(params)
-        headers = {"User-Agent": "ResearchRamp/0.1"}
+        headers = {"User-Agent": "AreaDay/1.1"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         request = urllib.request.Request(url, headers=headers)

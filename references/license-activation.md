@@ -14,10 +14,10 @@ must never be treated as production records.
 Use one command from the Skill directory:
 
 ```bash
-.venv/bin/python scripts/researchramp_license.py device-id
-.venv/bin/python scripts/researchramp_license.py activate <activation-key>
-.venv/bin/python scripts/researchramp_license.py install <absolute-rrlicense-path>
-.venv/bin/python scripts/researchramp_license.py status
+.venv/bin/python scripts/areaday_license.py device-id
+.venv/bin/python scripts/areaday_license.py activate <activation-key>
+.venv/bin/python scripts/areaday_license.py install <absolute-rrlicense-path>
+.venv/bin/python scripts/areaday_license.py status
 ```
 
 On Windows, use `.venv\Scripts\python.exe` instead. For `activate`, use only the
@@ -71,7 +71,7 @@ reached; it does not mean the installed license is invalid. A previously
 completed local result remains viewable while the service is unavailable.
 
 The normal license precheck for initialization is
-`researchramp_license.py status`. It validates the installed license offline and
+`areaday_license.py status`. It validates the installed license offline and
 must not contact the prediction service. Do not use prediction-service
 availability to decide whether profile confirmation, paper collection, or local
 corpus preparation may begin.

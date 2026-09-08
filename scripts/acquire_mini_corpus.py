@@ -29,7 +29,7 @@ from run_timing import RunTimeline
 from corpus_analysis import analyze_corpus
 from domain_registry import DomainRegistry, default_registry_path
 from research_profile import validate_profile
-from researchramp_core import (
+from areaday_core import (
     OpenAlexClient,
     candidate_from_openalex_work,
     load_openalex_api_key,
@@ -53,7 +53,7 @@ ARXIV_ID_RE = re.compile(
     r"((?:[a-z][a-z.\-]+/\d{7})|(?:\d{4}\.\d{4,5}))(?:v\d+)?",
     re.IGNORECASE,
 )
-ARXIV_CANDIDATE_CACHE_KIND = "researchramp.arxiv.candidates"
+ARXIV_CANDIDATE_CACHE_KIND = "areaday.arxiv.candidates"
 ARXIV_CANDIDATE_CACHE_SCHEMA_VERSION = 2
 MAX_RETRIEVAL_STRATEGIES = 3
 RETRIEVAL_STATE_NAME = "retrieval-strategy-state.json"
@@ -188,7 +188,7 @@ class SemanticScholarClient:
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "ResearchRamp/0.1 (local academic research client)",
+                "User-Agent": "AreaDay/1.1 (local academic research client)",
                 "Accept": "application/json",
             }
         )

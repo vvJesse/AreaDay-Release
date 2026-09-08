@@ -117,10 +117,10 @@ async function request(path, options = {}, requestContext = {}) {
   const generation = requestContext.generation === undefined ? domainGeneration : requestContext.generation;
   const headers = {
     "Content-Type": "application/json",
-    "X-ResearchRamp-API-Version": String(EXPECTED_API_VERSION),
+    "X-AreaDay-API-Version": String(EXPECTED_API_VERSION),
     ...(options.headers || {}),
   };
-  if (domainId) headers["X-ResearchRamp-Domain"] = domainId;
+  if (domainId) headers["X-AreaDay-Domain"] = domainId;
   let response;
   try {
     response = await fetch(domainUrl(path, domainId), {
@@ -155,9 +155,9 @@ async function sendActivityHeartbeat() {
   lastActivityHeartbeatMs = now;
   const headers = {
     "Content-Type": "application/json",
-    "X-ResearchRamp-API-Version": String(EXPECTED_API_VERSION),
+    "X-AreaDay-API-Version": String(EXPECTED_API_VERSION),
   };
-  if (currentDomainId) headers["X-ResearchRamp-Domain"] = currentDomainId;
+  if (currentDomainId) headers["X-AreaDay-Domain"] = currentDomainId;
   try {
     const response = await fetch(domainUrl("/api/activity", currentDomainId), {
       method: "POST",

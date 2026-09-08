@@ -14,7 +14,7 @@ SKILL_DIR = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = SKILL_DIR / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from researchramp_core import OpenAlexClient  # noqa: E402
+from areaday_core import OpenAlexClient  # noqa: E402
 
 
 class JsonResponse(io.BytesIO):
@@ -42,7 +42,7 @@ class OpenAlexCacheTests(unittest.TestCase):
             client = OpenAlexClient(Path(temporary), api_key="first-secret")
             payload = response_payload("W1")
             with patch(
-                "researchramp_core.urllib.request.urlopen",
+                "areaday_core.urllib.request.urlopen",
                 return_value=JsonResponse(payload),
             ) as urlopen:
                 self.assertEqual(client.search("shared query", per_page=10), payload)
@@ -60,7 +60,7 @@ class OpenAlexCacheTests(unittest.TestCase):
             second = OpenAlexClient(cache_dir, api_key="second-secret")
             payload = response_payload("W2")
             with patch(
-                "researchramp_core.urllib.request.urlopen",
+                "areaday_core.urllib.request.urlopen",
                 return_value=JsonResponse(payload),
             ) as urlopen:
                 first.search("same public result", per_page=25)
@@ -76,12 +76,12 @@ class OpenAlexCacheTests(unittest.TestCase):
             old_payload = response_payload("W-old")
             new_payload = response_payload("W-new")
             with patch(
-                "researchramp_core.urllib.request.urlopen",
+                "areaday_core.urllib.request.urlopen",
                 return_value=JsonResponse(old_payload),
             ):
                 OpenAlexClient(cache_dir).search("refreshable", per_page=5)
             with patch(
-                "researchramp_core.urllib.request.urlopen",
+                "areaday_core.urllib.request.urlopen",
                 return_value=JsonResponse(new_payload),
             ) as urlopen:
                 result = OpenAlexClient(cache_dir, refresh=True).search(
@@ -91,7 +91,7 @@ class OpenAlexCacheTests(unittest.TestCase):
             self.assertEqual(result, new_payload)
             self.assertEqual(urlopen.call_count, 1)
             with patch(
-                "researchramp_core.urllib.request.urlopen",
+                "areaday_core.urllib.request.urlopen",
                 side_effect=AssertionError("cache miss"),
             ):
                 self.assertEqual(
@@ -104,17 +104,17 @@ class OpenAlexCacheTests(unittest.TestCase):
             cache_dir = Path(temporary)
             payload = response_payload("W-stable")
             with patch(
-                "researchramp_core.urllib.request.urlopen",
+                "areaday_core.urllib.request.urlopen",
                 return_value=JsonResponse(payload),
             ):
                 OpenAlexClient(cache_dir).search("stable", per_page=5)
 
             with (
                 patch(
-                    "researchramp_core.urllib.request.urlopen",
+                    "areaday_core.urllib.request.urlopen",
                     side_effect=urllib.error.URLError("offline"),
                 ),
-                patch("researchramp_core.time.sleep"),
+                patch("areaday_core.time.sleep"),
             ):
                 with self.assertRaises(RuntimeError):
                     OpenAlexClient(cache_dir, refresh=True).search(
@@ -122,7 +122,7 @@ class OpenAlexCacheTests(unittest.TestCase):
                     )
 
             with patch(
-                "researchramp_core.urllib.request.urlopen",
+                "areaday_core.urllib.request.urlopen",
                 side_effect=AssertionError("successful cache was lost"),
             ):
                 self.assertEqual(

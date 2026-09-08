@@ -13,7 +13,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from researchramp_license import (  # noqa: E402
+from areaday_license import (  # noqa: E402
     DEFAULT_PRODUCTION_ACTIVATION_SERVER,
     PRODUCTION_APP_NAME,
     PRODUCTION_MAJOR_VERSION,

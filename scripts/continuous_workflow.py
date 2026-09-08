@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic stages for ResearchRamp's continuing weekly workflow.
+"""Deterministic stages for AreaDay's continuing weekly workflow.
 
 The host agent remains responsible for relevance/value review, paper selection,
 and all shadow-preview writing. This script performs metadata
@@ -33,7 +33,7 @@ from acquire_mini_corpus import (
 )
 from continuous_state import ContinuousStore, discovery_keys, utc_iso, validate_brief
 from research_profile import validate_profile
-from researchramp_core import (
+from areaday_core import (
     load_openalex_api_key,
     read_json,
     stable_hash,
@@ -54,7 +54,7 @@ def _profile_path(workspace: Path) -> Path:
         path = workspace / name
         if path.is_file():
             return path
-    raise FileNotFoundError("没有找到已确认的 ResearchRamp 研究配置，请先运行 init")
+    raise FileNotFoundError("没有找到已确认的 AreaDay 研究配置，请先运行 init")
 
 
 def _continuous_root(workspace: Path) -> Path:
@@ -595,7 +595,7 @@ def _fetch_supplemental_source(candidate: dict[str, Any], run_dir: Path) -> dict
     content_url = str(candidate.get("content_url") or candidate.get("source_url") or "").strip()
     response = requests.get(
         content_url,
-        headers={"User-Agent": "ResearchRamp/1.0 (+local research brief)"},
+        headers={"User-Agent": "AreaDay/1.1 (+local research brief)"},
         timeout=45,
     )
     response.raise_for_status()
@@ -916,7 +916,7 @@ def finalize(workspace: Path, output_path: Path) -> dict[str, Any]:
         raise ValueError("the prepared agent input is missing; source alignment cannot be verified")
     packet = read_json(packet_path)
     if Path(str(packet.get("workspace") or "")).resolve() != workspace.resolve():
-        raise ValueError("prepared packet belongs to a different ResearchRamp workspace")
+        raise ValueError("prepared packet belongs to a different AreaDay workspace")
     if str(packet.get("run_id") or "") != run_dir.name:
         raise ValueError("prepared packet run ID does not match its isolated run directory")
     if Path(str(packet.get("agent_output_path") or "")).resolve() != output_path:

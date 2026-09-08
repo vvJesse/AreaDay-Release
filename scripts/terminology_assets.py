@@ -1,4 +1,4 @@
-"""One strict loader for finalized ResearchRamp terminology assets."""
+"""One strict loader for finalized AreaDay terminology assets."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def load_finalized_terminology(
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise FileNotFoundError(
-            "ResearchRamp initialization is incomplete; missing: " + ", ".join(missing)
+            "AreaDay initialization is incomplete; missing: " + ", ".join(missing)
         )
 
     try:

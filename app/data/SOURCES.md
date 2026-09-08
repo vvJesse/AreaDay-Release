@@ -28,7 +28,7 @@ Local ECDICT source SHA-256:
 The repository publishes ECDICT under the MIT license and describes `tag` as
 the space-separated exam labels `zk`/middle-school, `gk`/Gaokao, `cet4`, etc.
 The source audit nevertheless records that ECDICT accumulated material from
-multiple historical upstream sources. ResearchRamp therefore uses only the
+multiple historical upstream sources. AreaDay therefore uses only the
 minimal factual labels and retains the ECDICT MIT notice and this provenance
 note in the distribution.
 

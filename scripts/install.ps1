@@ -7,14 +7,14 @@ $ErrorActionPreference = "Stop"
 $UvVersion = "0.12.6"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillDir = Split-Path -Parent $ScriptDir
-$RuntimeDir = if ($env:RESEARCHRAMP_RUNTIME_DIR) { $env:RESEARCHRAMP_RUNTIME_DIR } else { Join-Path $SkillDir ".runtime" }
-$VenvDir = if ($env:RESEARCHRAMP_VENV_DIR) { $env:RESEARCHRAMP_VENV_DIR } else { Join-Path $SkillDir ".venv" }
-$ModelDir = if ($env:RESEARCHRAMP_MODEL_DIR) { $env:RESEARCHRAMP_MODEL_DIR } else { Join-Path $HOME ".researchramp\models\sentence-transformers" }
+$RuntimeDir = if ($env:AREADAY_RUNTIME_DIR) { $env:AREADAY_RUNTIME_DIR } else { Join-Path $SkillDir ".runtime" }
+$VenvDir = if ($env:AREADAY_VENV_DIR) { $env:AREADAY_VENV_DIR } else { Join-Path $SkillDir ".venv" }
+$ModelDir = if ($env:AREADAY_MODEL_DIR) { $env:AREADAY_MODEL_DIR } else { Join-Path $HOME ".areaday\models\sentence-transformers" }
 $SetupScript = Join-Path $ScriptDir "setup_dependencies.py"
 $PortableRuntimeScript = Join-Path $ScriptDir "prepare_portable_runtime.py"
 $MigrationScript = Join-Path $ScriptDir "migrate_areaday_data.py"
 $OpenAlexSetupScript = Join-Path $ScriptDir "configure_openalex.ps1"
-$OpenAlexConfigDir = if ($env:RESEARCHRAMP_CONFIG_DIR) { $env:RESEARCHRAMP_CONFIG_DIR } else { Join-Path $HOME ".researchramp" }
+$OpenAlexConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { Join-Path $HOME ".areaday" }
 $OpenAlexConfig = Join-Path $OpenAlexConfigDir "credentials.ini"
 
 function Get-BundledRuntime {
@@ -90,7 +90,7 @@ function Assert-WindowsRuntimePath([System.IO.FileInfo]$RuntimeArchive) {
         $Archive.Dispose()
     }
     if ($LongestPath -ge 260) {
-        throw "The AreaDay runtime path would exceed the Windows 260-character compatibility limit. Choose a shorter Skill or RESEARCHRAMP_VENV_DIR path."
+        throw "The AreaDay runtime path would exceed the Windows 260-character compatibility limit. Choose a shorter Skill or AREADAY_VENV_DIR path."
     }
 }
 
@@ -227,8 +227,8 @@ $LocalUv = Join-Path $LocalUvDir "uv.exe"
 if (Test-Path -LiteralPath $LocalUv -PathType Leaf) {
     $UvBin = $LocalUv
 } else {
-    $InstallerUrl = if ($env:RESEARCHRAMP_UV_INSTALLER_URL) { $env:RESEARCHRAMP_UV_INSTALLER_URL } else { "https://astral.sh/uv/$UvVersion/install.ps1" }
-    $UvArtifactBases = if ($env:RESEARCHRAMP_UV_DOWNLOAD_URL) { $env:RESEARCHRAMP_UV_DOWNLOAD_URL } else { "https://github.com/astral-sh/uv/releases/download/$UvVersion https://releases.astral.sh/github/uv/releases/download/$UvVersion" }
+    $InstallerUrl = if ($env:AREADAY_UV_INSTALLER_URL) { $env:AREADAY_UV_INSTALLER_URL } else { "https://astral.sh/uv/$UvVersion/install.ps1" }
+    $UvArtifactBases = if ($env:AREADAY_UV_DOWNLOAD_URL) { $env:AREADAY_UV_DOWNLOAD_URL } else { "https://github.com/astral-sh/uv/releases/download/$UvVersion https://releases.astral.sh/github/uv/releases/download/$UvVersion" }
     $InstallerPath = Join-Path $RuntimeDir "uv-installer-$UvVersion.ps1"
     Write-Host "Downloading the pinned uv $UvVersion installer..."
     Invoke-WebRequest -UseBasicParsing -TimeoutSec 120 -Uri $InstallerUrl -OutFile $InstallerPath

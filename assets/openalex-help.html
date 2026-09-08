@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ResearchRamp · 获取 OpenAlex Key</title>
+    <title>AreaDay · 获取 OpenAlex Key</title>
     <style>
       :root {
         color-scheme: light;
@@ -155,9 +155,9 @@
   </head>
   <body>
     <main class="shell">
-      <div class="eyebrow"><span class="dot"></span>ResearchRamp 初次设置</div>
+      <div class="eyebrow"><span class="dot"></span>AreaDay 初次设置</div>
       <h1>获取你的 OpenAlex API Key</h1>
-      <p class="lead">免费 Key 可以提高跨学科论文检索和公开全文获取的可用额度。完成后请回到设置窗口，在隐藏输入框中粘贴 Key；ResearchRamp 会自动验证并安全保存。</p>
+      <p class="lead">免费 Key 可以提高跨学科论文检索和公开全文获取的可用额度。完成后请回到 AreaDay 打开的配置文件，将 Key 填入指定位置并保存；AreaDay 会自动验证。</p>
 
       <section class="card" aria-label="OpenAlex Key 获取步骤">
         <div class="step">
@@ -180,13 +180,14 @@
         <div class="step">
           <div class="number">3</div>
           <div>
-            <h2>回到设置窗口并粘贴</h2>
-            <p>回到 AreaDay 打开的设置窗口，将 Key 粘贴到隐藏输入框并按回车。ResearchRamp 会自动验证并保存；看到确认成功后，你就可以离开。不需要打开或编辑 <code>credentials.ini</code>。</p>
+            <h2>填写配置文件并保存</h2>
+            <p>AreaDay 已打开 <code>credentials.ini</code>。将 Key 填到 <code>api_key =</code> 后面并保存文件。AreaDay 会自动验证；看到确认成功后，你就可以离开。</p>
+            <p style="margin-top: 12px;">默认位置：macOS 是 <code>~/.areaday/credentials.ini</code>；Windows 是 <code>%USERPROFILE%\.areaday\credentials.ini</code>。</p>
           </div>
         </div>
       </section>
 
-      <p class="privacy">本页面不会读取、接收或保存你的 Key。Key 只写入这台电脑上的 ResearchRamp 配置文件。</p>
+      <p class="privacy">本页面不会读取、接收或保存你的 Key。Key 只写入这台电脑上的 AreaDay 配置文件。</p>
     </main>
   </body>
 </html>

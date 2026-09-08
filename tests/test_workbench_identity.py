@@ -65,7 +65,7 @@ class WorkbenchIdentityTests(unittest.TestCase):
         self.assertEqual(
             runtime.identity(),
             {
-                "service": "researchramp-workbench",
+                "service": "areaday-workbench",
                 "identity_version": APP.WORKBENCH_IDENTITY_VERSION,
                 "registry": str(
                     (self.root / "library" / "domains.json").resolve()
@@ -87,7 +87,7 @@ class WorkbenchIdentityTests(unittest.TestCase):
         self.assertEqual(
             runtime.identity(),
             {
-                "service": "researchramp-workbench",
+                "service": "areaday-workbench",
                 "identity_version": APP.WORKBENCH_IDENTITY_VERSION,
                 "registry": None,
                 "instance_id": "standalone-instance",
@@ -132,7 +132,7 @@ class WorkbenchIdentityTests(unittest.TestCase):
         self.assertEqual(
             json.loads(handler.wfile.getvalue().decode("utf-8")),
             {
-                "service": "researchramp-workbench",
+                "service": "areaday-workbench",
                 "identity_version": APP.WORKBENCH_IDENTITY_VERSION,
                 "registry": str(
                     (self.root / "library" / "domains.json").resolve()

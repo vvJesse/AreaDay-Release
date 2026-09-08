@@ -28,7 +28,7 @@ from domain_registry import (
     validate_corpus_launch_workspace,
 )
 from remote_calibration import InvalidCalibrationData
-from researchramp_license import enforce_business_license
+from areaday_license import enforce_business_license
 from workbench_protocol import (
     DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
     WORKBENCH_IDENTITY_PATH,
@@ -403,7 +403,7 @@ def _launch_log_path(port: int, instance_id: str) -> Path:
     user_id = str(os.getuid()) if hasattr(os, "getuid") else "user"
     return (
         Path(tempfile.gettempdir())
-        / f"researchramp-workbench-{user_id}-{port}-{instance_id}.log"
+        / f"areaday-workbench-{user_id}-{port}-{instance_id}.log"
     )
 
 

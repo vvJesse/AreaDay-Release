@@ -48,7 +48,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex
 ```
 
 The setup keeps research workspaces outside the Skill bundle. It also copies
-the exact former sibling `researchramp\researchramp-data` directory on the first
+the exact former sibling legacy-data directory on the first
 AreaDay installation when legacy data exists; it never deletes the source.
 Upgrading the Skill therefore does not consume a new device slot or erase an
 existing registry.

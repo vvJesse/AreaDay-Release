@@ -1,4 +1,4 @@
-"""Global, source-grounded learning state shared by ResearchRamp domains."""
+"""Global, source-grounded learning state shared by AreaDay domains."""
 
 from __future__ import annotations
 

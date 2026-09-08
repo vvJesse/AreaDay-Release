@@ -74,8 +74,8 @@ jobs:
         run: |
           delivery_dir=$(mktemp -d "$RUNNER_TEMP/areaday-delivery.XXXXXX")
           ditto -x -k "dist/AreaDay-$AREADAY_PLATFORM-v$AREADAY_VERSION.zip" "$delivery_dir"
-          RESEARCHRAMP_RUNTIME_DIR="$delivery_dir/runtime-cache" \
-          RESEARCHRAMP_MODEL_DIR="$delivery_dir/models" \
+          AREADAY_RUNTIME_DIR="$delivery_dir/runtime-cache" \
+          AREADAY_MODEL_DIR="$delivery_dir/models" \
           AREADAY_DATA_DIR="$delivery_dir/data" \
           sh "$delivery_dir/areaday/scripts/install.sh" --runtime-only
 
@@ -85,8 +85,8 @@ jobs:
         run: |
           $DeliveryDir = Join-Path $env:RUNNER_TEMP ("areaday-delivery-" + [Guid]::NewGuid().ToString("N"))
           Expand-Archive -LiteralPath "dist/AreaDay-$env:AREADAY_PLATFORM-v$env:AREADAY_VERSION.zip" -DestinationPath $DeliveryDir
-          $env:RESEARCHRAMP_RUNTIME_DIR = Join-Path $DeliveryDir "runtime-cache"
-          $env:RESEARCHRAMP_MODEL_DIR = Join-Path $DeliveryDir "models"
+          $env:AREADAY_RUNTIME_DIR = Join-Path $DeliveryDir "runtime-cache"
+          $env:AREADAY_MODEL_DIR = Join-Path $DeliveryDir "models"
           $env:AREADAY_DATA_DIR = Join-Path $DeliveryDir "data"
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $DeliveryDir "areaday\scripts\install.ps1") -Mode runtime-only
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

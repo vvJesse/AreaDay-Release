@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-command, isolated ResearchRamp runtime setup and verification."""
+"""One-command, isolated AreaDay runtime setup and verification."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_VENV_DIR = SKILL_DIR / ".venv"
-DEFAULT_MODEL_DIR = Path.home() / ".researchramp" / "models" / "sentence-transformers"
+DEFAULT_MODEL_DIR = Path.home() / ".areaday" / "models" / "sentence-transformers"
 OFFICIAL_HF_ENDPOINT = "https://huggingface.co"
 CHINA_HF_MIRROR = "https://hf-mirror.com"
 MODEL_MANIFEST = SKILL_DIR / "references" / "embedding-model-manifest.json"
@@ -46,7 +46,7 @@ def runtime_environment(model_dir: Path) -> dict[str, str]:
     environment.setdefault("HF_HUB_ETAG_TIMEOUT", "30")
     environment.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
     environment.setdefault("HF_HUB_VERBOSITY", "error")
-    environment["RESEARCHRAMP_MODEL_DIR"] = str(model_dir)
+    environment["AREADAY_MODEL_DIR"] = str(model_dir)
     return environment
 
 
@@ -183,7 +183,7 @@ def install_packages(venv_dir: Path, environment: dict[str, str]) -> None:
         ]
         index_flag = "--index-url"
 
-    configured_index = environment.get("RESEARCHRAMP_PYPI_INDEX_URL")
+    configured_index = environment.get("AREADAY_PYPI_INDEX_URL")
     indexes = [configured_index, OFFICIAL_PYPI_INDEX, *CHINA_PYPI_MIRRORS]
     unique_indexes = list(dict.fromkeys(index for index in indexes if index))
     last_error: subprocess.CalledProcessError | None = None
@@ -228,7 +228,7 @@ def ensure_spacy_model(venv_dir: Path, environment: dict[str, str]) -> None:
     manifest = json.loads(MODEL_MANIFEST.read_text(encoding="utf-8"))
     wheel = manifest["spacy_wheel"]
     cache_path = SKILL_DIR / ".cache" / "wheels" / wheel["filename"]
-    configured_endpoint = os.environ.get("RESEARCHRAMP_MODEL_ENDPOINT") or manifest.get(
+    configured_endpoint = os.environ.get("AREADAY_MODEL_ENDPOINT") or manifest.get(
         "asset_endpoint"
     )
     urls = []
@@ -271,7 +271,7 @@ def download_verified_file(url: str, destination: Path, expected_hash: str) -> N
     destination.parent.mkdir(parents=True, exist_ok=True)
     staging = destination.with_suffix(destination.suffix + ".part")
     request = urllib.request.Request(
-        url, headers={"User-Agent": "ResearchRamp/0.1 (public asset installer)"}
+        url, headers={"User-Agent": "AreaDay/1.1 (public asset installer)"}
     )
     try:
         digest = hashlib.sha256()
@@ -332,7 +332,7 @@ def verify(
     )
     environment = runtime_environment(model_dir)
     if endpoint:
-        environment["RESEARCHRAMP_MODEL_ENDPOINT"] = endpoint
+        environment["AREADAY_MODEL_ENDPOINT"] = endpoint
         if endpoint == CHINA_HF_MIRROR:
             environment.setdefault("HF_HUB_DISABLE_XET", "1")
     subprocess.run(
@@ -365,7 +365,7 @@ def download_and_verify_embedding_model(
     model_dir: Path,
 ) -> None:
     manifest = json.loads(MODEL_MANIFEST.read_text(encoding="utf-8"))
-    asset_endpoint = os.environ.get("RESEARCHRAMP_MODEL_ENDPOINT") or manifest.get(
+    asset_endpoint = os.environ.get("AREADAY_MODEL_ENDPOINT") or manifest.get(
         "asset_endpoint"
     )
     endpoints = embedding_download_endpoints(

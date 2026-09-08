@@ -1,10 +1,11 @@
-"""Persistent local state for ResearchRamp's continuing research workflow."""
+"""Persistent local state for AreaDay's continuing research workflow."""
 
 from __future__ import annotations
 
 import csv
 import json
 import re
+import shutil
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,7 +18,8 @@ from vocabulary_cards import load_catalog
 
 
 CONTINUOUS_DIR = "continuous"
-DATABASE_NAME = "researchramp.sqlite3"
+DATABASE_NAME = "areaday.sqlite3"
+LEGACY_DATABASE_NAME = "researchramp.sqlite3"
 SETTINGS_NAME = "schedule.json"
 SAFE_RECORD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$")
 
@@ -36,11 +38,11 @@ def _json(value: Any) -> str:
 
 def _loads(value: str | None) -> Any:
     if not value:
-        raise ValueError("ResearchRamp database record is empty")
+        raise ValueError("AreaDay database record is empty")
     try:
         return json.loads(value)
     except (TypeError, ValueError, json.JSONDecodeError) as error:
-        raise ValueError("ResearchRamp database record contains invalid JSON") from error
+        raise ValueError("AreaDay database record contains invalid JSON") from error
 
 
 def discovery_keys(candidate: dict[str, Any]) -> set[str]:
@@ -129,6 +131,9 @@ class ContinuousStore:
         self.root = self.workspace / CONTINUOUS_DIR
         self.root.mkdir(parents=True, exist_ok=True)
         self.database_path = self.root / DATABASE_NAME
+        legacy_database_path = self.root / LEGACY_DATABASE_NAME
+        if not self.database_path.is_file() and legacy_database_path.is_file():
+            shutil.copy2(legacy_database_path, self.database_path)
         self.settings_path = self.root / SETTINGS_NAME
         self.learning_store = learning_store or GlobalLearningStore(
             self.root / "global-learning.sqlite3"
@@ -338,7 +343,7 @@ class ContinuousStore:
             return validate_settings(payload)
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
             raise ValueError(
-                f"ResearchRamp 计划设置损坏，已停止载入：{self.settings_path}"
+                f"AreaDay 计划设置损坏，已停止载入：{self.settings_path}"
             ) from error
 
     def save_settings(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -365,7 +370,7 @@ class ContinuousStore:
         automations = {
             "weekly_brief": {
                 **settings["weekly_brief"],
-                "automation_key": f"researchramp:{self.domain_id}:weekly-brief",
+                "automation_key": f"areaday:{self.domain_id}:weekly-brief",
                 "name": f"{prefix} · 每周研究简报",
                 "prompt": (
                     "Use $areaday to generate one research brief for the initialized "
@@ -378,7 +383,7 @@ class ContinuousStore:
             },
             "daily_review": {
                 **settings["daily_review"],
-                "automation_key": f"researchramp:{self.domain_id}:daily-review",
+                "automation_key": f"areaday:{self.domain_id}:daily-review",
                 "name": f"{prefix} · 今日语言复习",
                 "prompt": (
                     "Use $areaday in due-review reminder mode for the initialized "

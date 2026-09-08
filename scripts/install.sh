@@ -4,14 +4,14 @@ set -eu
 UV_VERSION="0.12.6"
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SKILL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-RUNTIME_DIR=${RESEARCHRAMP_RUNTIME_DIR:-"$SKILL_DIR/.runtime"}
-VENV_DIR=${RESEARCHRAMP_VENV_DIR:-"$SKILL_DIR/.venv"}
-MODEL_DIR=${RESEARCHRAMP_MODEL_DIR:-"$HOME/.researchramp/models/sentence-transformers"}
+RUNTIME_DIR=${AREADAY_RUNTIME_DIR:-"$SKILL_DIR/.runtime"}
+VENV_DIR=${AREADAY_VENV_DIR:-"$SKILL_DIR/.venv"}
+MODEL_DIR=${AREADAY_MODEL_DIR:-"$HOME/.areaday/models/sentence-transformers"}
 SETUP_SCRIPT="$SCRIPT_DIR/setup_dependencies.py"
 PORTABLE_RUNTIME_SCRIPT="$SCRIPT_DIR/prepare_portable_runtime.py"
 MIGRATION_SCRIPT="$SCRIPT_DIR/migrate_areaday_data.py"
 OPENALEX_SETUP_SCRIPT="$SCRIPT_DIR/configure_openalex.sh"
-OPENALEX_CONFIG="$HOME/.researchramp/credentials.ini"
+OPENALEX_CONFIG="$HOME/.areaday/credentials.ini"
 MODE=${1:---install}
 OPENALEX_SETUP_PID=""
 RUNTIME_STAGE=""
@@ -179,8 +179,8 @@ LOCAL_UV="$LOCAL_UV_DIR/uv"
 if [ -x "$LOCAL_UV" ]; then
   UV_BIN="$LOCAL_UV"
 else
-  INSTALLER_URL=${RESEARCHRAMP_UV_INSTALLER_URL:-"https://astral.sh/uv/$UV_VERSION/install.sh"}
-  UV_ARTIFACT_BASES=${RESEARCHRAMP_UV_DOWNLOAD_URL:-"https://github.com/astral-sh/uv/releases/download/$UV_VERSION https://releases.astral.sh/github/uv/releases/download/$UV_VERSION"}
+  INSTALLER_URL=${AREADAY_UV_INSTALLER_URL:-"https://astral.sh/uv/$UV_VERSION/install.sh"}
+  UV_ARTIFACT_BASES=${AREADAY_UV_DOWNLOAD_URL:-"https://github.com/astral-sh/uv/releases/download/$UV_VERSION https://releases.astral.sh/github/uv/releases/download/$UV_VERSION"}
   INSTALLER_PATH="$RUNTIME_DIR/uv-installer-$UV_VERSION.sh"
   echo "Downloading the pinned uv $UV_VERSION installer..."
   if command -v curl >/dev/null 2>&1; then

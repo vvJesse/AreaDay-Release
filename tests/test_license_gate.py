@@ -24,7 +24,7 @@ import configure_schedule  # noqa: E402
 import generate_brief  # noqa: E402
 import initialize  # noqa: E402
 import open_workbench  # noqa: E402
-from researchramp_license import (  # noqa: E402
+from areaday_license import (  # noqa: E402
     ActivationClient,
     LicenseError,
     LicenseVerifier,

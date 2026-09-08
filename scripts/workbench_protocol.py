@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-WORKBENCH_SERVICE = "researchramp-workbench"
+WORKBENCH_SERVICE = "areaday-workbench"
 WORKBENCH_IDENTITY_VERSION = 2
 WORKBENCH_IDENTITY_PATH = "/api/identity"
 WORKBENCH_ACTIVITY_PATH = "/api/activity"

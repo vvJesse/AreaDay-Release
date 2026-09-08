@@ -22,13 +22,13 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from researchramp_license import (  # noqa: E402
+from areaday_license import (  # noqa: E402
     ActivationClient,
     LicenseError,
     LicenseVerifier,
     derive_device_id,
 )
-import researchramp_license  # noqa: E402
+import areaday_license  # noqa: E402
 
 
 FORMAT = "researchramp-license-envelope-v1"
@@ -126,7 +126,7 @@ class OnlineActivationClientTests(unittest.TestCase):
 
     def test_default_activation_service_is_the_areaday_production_worker(self) -> None:
         self.assertEqual(
-            researchramp_license.DEFAULT_PRODUCTION_ACTIVATION_SERVER,
+            areaday_license.DEFAULT_PRODUCTION_ACTIVATION_SERVER,
             "https://license.areaday.app",
         )
 
@@ -216,7 +216,7 @@ class OnlineActivationClientTests(unittest.TestCase):
                         sys,
                         "argv",
                         [
-                            "researchramp_license.py",
+                            "areaday_license.py",
                             "activate",
                             "RR1-STAGE-TWO-VALID-ACTIVATION-KEY",
                             "--server",
@@ -224,23 +224,23 @@ class OnlineActivationClientTests(unittest.TestCase):
                         ],
                     ),
                     patch.object(
-                        researchramp_license,
+                        areaday_license,
                         "current_device_id",
                         return_value=self.device_id,
                     ),
                     patch.object(
-                        researchramp_license,
+                        areaday_license,
                         "production_license_path",
                         return_value=destination,
                     ),
                     patch.object(
-                        researchramp_license,
+                        areaday_license,
                         "production_verifier",
                         return_value=self.verifier,
                     ),
                     redirect_stdout(output),
                 ):
-                    return_code = researchramp_license.main()
+                    return_code = areaday_license.main()
 
             result = json.loads(output.getvalue())
             offline_status = self.verifier.status(

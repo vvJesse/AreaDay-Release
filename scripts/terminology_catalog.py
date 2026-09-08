@@ -1,4 +1,4 @@
-"""Load the host-reviewed ResearchRamp terminology asset with real evidence."""
+"""Load the host-reviewed AreaDay terminology asset with real evidence."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ class TerminologyCatalog:
         papers_path = analysis / "papers.jsonl"
         for path in (papers_path,):
             if not path.is_file():
-                raise FileNotFoundError(f"ResearchRamp 术语产物缺失：{path}")
+                raise FileNotFoundError(f"AreaDay 术语产物缺失：{path}")
         self._raw_terms, self._explanations, _ = load_finalized_terminology(
             self.workspace,
             require_review_summary=False,

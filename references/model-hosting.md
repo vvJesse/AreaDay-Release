@@ -20,4 +20,4 @@ Set `asset_endpoint` in `embedding-model-manifest.json` to the HTTPS origin, wit
 
 Keep the Apache-2.0 model license and spaCy model's MIT license/attribution with the distributed asset set. The installer validates the official spaCy wheel hash and both embedding-asset hashes before inference.
 
-Before release, run the installer into a new temporary `--venv-dir` and `--model-dir`, with `RESEARCHRAMP_MODEL_ENDPOINT=<endpoint>`, then run it again without `--install` to prove offline reuse.
+Before release, run the installer into a new temporary `--venv-dir` and `--model-dir`, with `AREADAY_MODEL_ENDPOINT=<endpoint>`, then run it again without `--install` to prove offline reuse.

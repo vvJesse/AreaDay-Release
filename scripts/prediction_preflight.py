@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from remote_calibration import CalibrationServiceError, RemoteCalibrationClient
-from researchramp_license import (
+from areaday_license import (
     DEFAULT_PRODUCTION_ACTIVATION_SERVER,
     LicenseError,
     LicenseVerifier,

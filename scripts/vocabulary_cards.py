@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from researchramp_core import read_json, utc_now, write_json, write_jsonl
+from areaday_core import read_json, utc_now, write_json, write_jsonl
 from orthography_contract import orthography_summary_is_complete
 
 

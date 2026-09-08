@@ -15,7 +15,7 @@ if str(SCRIPTS) not in sys.path:
 
 from prediction_preflight import prediction_preflight_status  # noqa: E402
 from remote_calibration import CalibrationServiceError  # noqa: E402
-from researchramp_license import LicenseError  # noqa: E402
+from areaday_license import LicenseError  # noqa: E402
 
 
 class FakeClient:
@@ -106,7 +106,7 @@ class SkillLicenseRoutingTests(unittest.TestCase):
             ROOT / "references" / "license-activation.md"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("scripts/researchramp_license.py status", skill)
+        self.assertIn("scripts/areaday_license.py status", skill)
         self.assertNotIn("scripts/prediction_preflight.py", skill)
         self.assertNotIn("prediction_preflight.py", workflow)
         self.assertNotIn("scripts/prediction_preflight.py", license_reference)

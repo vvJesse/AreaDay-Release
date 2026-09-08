@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
-from researchramp_core import read_json, write_json
+from areaday_core import read_json, write_json
 
 
 def _wall_now() -> str:

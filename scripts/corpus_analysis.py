@@ -15,7 +15,7 @@ from academic_text import clean_academic_text, extract_pdf_text
 from corpus_selection import embed_texts, select_analysis_documents
 from lexical_assets import build_lexical_assets, select_shared_terminology_candidates
 from orthography_review import build_orthography_review_candidates
-from researchramp_core import utc_now, write_json, write_jsonl
+from areaday_core import utc_now, write_json, write_jsonl
 
 
 def _copy_output(source: Path, destination: Path) -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one ResearchRamp brief generation operation to a terminal result.
+"""Run one AreaDay brief generation operation to a terminal result.
 
 Discovery, source preparation, host-agent writing, validation, and import are
 one operation.  Host-agent work is exposed through ``next_action`` and must be
@@ -25,8 +25,8 @@ from domain_registry import (
     default_registry_path,
     validate_completed_workspace,
 )
-from researchramp_core import read_json, write_json
-from researchramp_license import enforce_business_license
+from areaday_core import read_json, write_json
+from areaday_license import enforce_business_license
 
 
 SCHEMA_VERSION = 1
@@ -49,10 +49,10 @@ class DomainSelectionRequired(BriefGenerationError):
         self.domains = domains
         self.requested_domain = requested_domain
         if requested_domain is None:
-            message = "Multiple ResearchRamp domains are available; ask the user to choose one"
+            message = "Multiple AreaDay domains are available; ask the user to choose one"
         else:
             message = (
-                f"ResearchRamp domain {requested_domain!r} is not registered; "
+                f"AreaDay domain {requested_domain!r} is not registered; "
                 "ask the user to choose one"
             )
         super().__init__(message)
@@ -85,7 +85,7 @@ def resolve_workspace(
 
     registry = DomainRegistry(registry_path)
     if not registry.domains:
-        raise BriefGenerationError("No initialized ResearchRamp domain is registered")
+        raise BriefGenerationError("No initialized AreaDay domain is registered")
     choices = [
         {"domain_id": item.domain_id, "display_name": item.display_name}
         for item in registry.domains

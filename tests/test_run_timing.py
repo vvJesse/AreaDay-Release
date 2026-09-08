@@ -8,7 +8,7 @@ from pathlib import Path
 SKILL_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
 
-from researchramp_core import read_json  # noqa: E402
+from areaday_core import read_json  # noqa: E402
 from run_timing import RunTimeline  # noqa: E402
 
 

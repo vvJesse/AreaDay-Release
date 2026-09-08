@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download if requested, then exercise ResearchRamp's local NLP runtime."""
+"""Download if requested, then exercise AreaDay's local NLP runtime."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from onnx_embeddings import OnnxSentenceEncoder
 
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_MODEL_DIR = Path.home() / ".researchramp" / "models" / "sentence-transformers"
+DEFAULT_MODEL_DIR = Path.home() / ".areaday" / "models" / "sentence-transformers"
 MODEL_MANIFEST = SKILL_DIR / "references" / "embedding-model-manifest.json"
 SPACY_MODEL = "en_core_web_sm"
 
@@ -61,7 +61,7 @@ def ensure_model_files(
         return
 
     target.mkdir(parents=True, exist_ok=True)
-    headers = {"User-Agent": "ResearchRamp/0.1 (public model installer)"}
+    headers = {"User-Agent": "AreaDay/1.1 (public model installer)"}
     for relative_path, expected_hash in files.items():
         destination = target / relative_path
         if destination.is_file() and sha256(destination) == expected_hash:
@@ -166,7 +166,7 @@ def main() -> int:
     if review_card.due <= review_log.review_datetime:
         raise RuntimeError("FSRS loaded, but did not schedule the reviewed card")
 
-    endpoint = os.environ.get("RESEARCHRAMP_MODEL_ENDPOINT") or os.environ.get(
+    endpoint = os.environ.get("AREADAY_MODEL_ENDPOINT") or os.environ.get(
         "HF_ENDPOINT", "https://huggingface.co"
     )
     snapshot_path = local_model_path(model_dir, embedding_model, revision)
