@@ -4,9 +4,20 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SKILL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 HELP_PATH="$SKILL_DIR/assets/openalex-help.html"
-CONFIG_DIR="$HOME/.researchramp"
+CONFIG_DIR="$HOME/.areaday"
 CONFIG_PATH="$CONFIG_DIR/credentials.ini"
+LEGACY_CONFIG_PATH="$HOME/.researchramp/credentials.ini"
 LAST_ATTEMPTED_VALUE=""
+RECONFIGURE=0
+
+case "${1:-}" in
+  "") ;;
+  --reconfigure) RECONFIGURE=1 ;;
+  *)
+    echo "Usage: sh scripts/configure_openalex.sh [--reconfigure]" >&2
+    exit 2
+    ;;
+esac
 
 cleanup() {
   LAST_ATTEMPTED_VALUE=""
@@ -31,14 +42,18 @@ read_api_key() {
 create_config_template() {
   mkdir -p "$CONFIG_DIR"
   chmod 700 "$CONFIG_DIR"
+  if [ ! -f "$CONFIG_PATH" ] && [ -f "$LEGACY_CONFIG_PATH" ]; then
+    umask 077
+    temporary=$(mktemp "$CONFIG_DIR/.credentials.XXXXXX")
+    cp "$LEGACY_CONFIG_PATH" "$temporary"
+    chmod 600 "$temporary"
+    mv "$temporary" "$CONFIG_PATH"
+  fi
   if [ ! -f "$CONFIG_PATH" ]; then
     umask 077
     temporary=$(mktemp "$CONFIG_DIR/.credentials.XXXXXX")
     {
-      printf '[openalex]\n\n'
-      printf '# 请把完整的 OpenAlex API Key 粘贴到等号右侧，然后保存。\n'
-      printf '# 不要把本文件上传或发送到聊天中。\n'
-      printf '# 如果明确选择匿名额度，请填写 anonymous。\n'
+      printf '[openalex]\n'
       printf 'api_key =\n'
     } >"$temporary"
     chmod 600 "$temporary"
@@ -91,12 +106,17 @@ validate_key() {
 
 create_config_template
 SETUP_FILES_OPENED=0
-if [ -z "$(read_api_key)" ]; then
+existing_api_key=$(read_api_key)
+if [ "$RECONFIGURE" -eq 1 ] || [ -z "$existing_api_key" ]; then
   open_setup_files
   SETUP_FILES_OPENED=1
   echo "OpenAlex instructions and the local configuration file are open."
-  echo "Look for credentials.ini in the Codex/WorkBuddy file panel or the system text editor."
+  echo "OpenAlex configuration file: $CONFIG_PATH"
+  echo "On macOS, its default location is ~/.areaday/credentials.ini."
   echo "Paste the key after 'api_key =', save the file, and keep this task open until validation finishes."
+  if [ "$RECONFIGURE" -eq 1 ]; then
+    LAST_ATTEMPTED_VALUE="$existing_api_key"
+  fi
 fi
 
 while :; do

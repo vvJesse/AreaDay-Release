@@ -11,7 +11,7 @@ from typing import Any
 
 from corpus_analysis import _write_vocabulary_tsv
 from lexical_assets import juilland_dispersion
-from researchramp_core import read_json, utc_now, write_json, write_jsonl
+from areaday_core import read_json, utc_now, write_json, write_jsonl
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:

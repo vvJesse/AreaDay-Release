@@ -51,7 +51,7 @@ building, or rebuilding a domain—run the local offline check exactly once,
 before asking product-specific follow-up questions or reading a workspace:
 
 ```bash
-.venv/bin/python scripts/researchramp_license.py status
+.venv/bin/python scripts/areaday_license.py status
 ```
 
 On `license_valid`, continue. On `license_error`, explain it and offer the
@@ -135,7 +135,7 @@ selection, or URL construction outside the launcher.
 
 The production Skill uses one upgrade-safe AreaDay registry in the operating
 system's application-data directory. The installer performs one exact legacy
-migration from the former sibling `researchramp/researchramp-data` directory;
+migration from the former sibling legacy-data directory;
 it never scans for or imports unrelated workspaces. Each registry entry stores
 the domain ID, display name, and the absolute path of the actual user-confirmed
 workspace. That workspace—and its papers—may be anywhere on the filesystem.

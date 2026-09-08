@@ -394,7 +394,7 @@ class DomainRoutingHttpTests(unittest.TestCase):
             "POST",
             "/api/preheat/start",
             {"paper_id": "fixture-paper-alpha"},
-            {"X-ResearchRamp-API-Version": str(APP.APP_API_VERSION)},
+            {"X-AreaDay-API-Version": str(APP.APP_API_VERSION)},
         )
         self.assertEqual(status, 400)
 
@@ -403,8 +403,8 @@ class DomainRoutingHttpTests(unittest.TestCase):
             "/api/preheat/start?domain_id=alpha",
             {"paper_id": "fixture-paper-alpha"},
             {
-                "X-ResearchRamp-API-Version": str(APP.APP_API_VERSION),
-                "X-ResearchRamp-Domain": "alpha",
+                "X-AreaDay-API-Version": str(APP.APP_API_VERSION),
+                "X-AreaDay-Domain": "alpha",
             },
         )
         self.assertEqual(status, 200)
@@ -416,8 +416,8 @@ class DomainRoutingHttpTests(unittest.TestCase):
             "/api/vocabulary/known?domain_id=alpha",
             {"lemma": "alpha"},
             {
-                "X-ResearchRamp-API-Version": str(APP.APP_API_VERSION),
-                "X-ResearchRamp-Domain": "beta",
+                "X-AreaDay-API-Version": str(APP.APP_API_VERSION),
+                "X-AreaDay-Domain": "beta",
             },
         )
         self.assertEqual(status, 400)
@@ -427,8 +427,8 @@ class DomainRoutingHttpTests(unittest.TestCase):
             "/api/vocabulary/known?domain_id=unknown",
             {"lemma": "alpha"},
             {
-                "X-ResearchRamp-API-Version": str(APP.APP_API_VERSION),
-                "X-ResearchRamp-Domain": "unknown",
+                "X-AreaDay-API-Version": str(APP.APP_API_VERSION),
+                "X-AreaDay-Domain": "unknown",
             },
         )
         self.assertEqual(status, 400)
@@ -440,7 +440,7 @@ class DomainRoutingHttpTests(unittest.TestCase):
             "POST",
             "/api/vocabulary/known?domain_id=beta",
             {"lemma": "alpha"},
-            {"X-ResearchRamp-Domain": "beta"},
+            {"X-AreaDay-Domain": "beta"},
         )
         self.assertEqual(status, 409)
         self.assertIn("版本不一致", data["error"])
@@ -448,8 +448,8 @@ class DomainRoutingHttpTests(unittest.TestCase):
 
     def test_new_word_routes_use_precalibrated_cards_without_a_preheat_action(self) -> None:
         headers = {
-            "X-ResearchRamp-API-Version": str(APP.APP_API_VERSION),
-            "X-ResearchRamp-Domain": "alpha",
+            "X-AreaDay-API-Version": str(APP.APP_API_VERSION),
+            "X-AreaDay-Domain": "alpha",
         }
         status, candidates = self.request(
             "GET", "/api/learning/new-words?domain_id=alpha&limit=5", headers=headers

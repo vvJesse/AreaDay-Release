@@ -18,7 +18,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from researchramp_license import (  # noqa: E402
+from areaday_license import (  # noqa: E402
     LicenseError,
     LicenseVerifier,
     _windows_system_uuid,
@@ -112,7 +112,7 @@ class LicenseActivationTests(unittest.TestCase):
     def test_windows_device_identity_falls_back_when_cim_is_restricted(self) -> None:
         machine_guid = "01234567-89ab-cdef-0123-456789abcdef"
         with patch(
-            "researchramp_license._command_output",
+            "areaday_license._command_output",
             side_effect=["", machine_guid],
         ) as command_output:
             self.assertEqual(_windows_system_uuid(), machine_guid)

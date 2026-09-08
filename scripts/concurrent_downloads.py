@@ -1,4 +1,4 @@
-"""Deterministic, bounded PDF acquisition for ResearchRamp candidates.
+"""Deterministic, bounded PDF acquisition for AreaDay candidates.
 
 Only the coordinator mutates result records and writes the checkpoint. Worker
 threads execute one route at a time, which keeps fallbacks for a candidate
@@ -20,7 +20,7 @@ from fulltext import (
     valid_pdf,
     validated_pdf_hostname,
 )
-from researchramp_core import write_jsonl
+from areaday_core import write_jsonl
 
 
 DEFAULT_MAX_DOWNLOADS = 4
@@ -283,7 +283,7 @@ def download_candidates_concurrently(
     sessions = _ThreadSessions(session_factory)
     executor = ThreadPoolExecutor(
         max_workers=max_downloads,
-        thread_name_prefix="researchramp-pdf",
+        thread_name_prefix="areaday-pdf",
     )
     next_index = 0
     successful = 0

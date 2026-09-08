@@ -154,7 +154,7 @@ class ContinuousStateTests(unittest.TestCase):
         self.assertEqual(handoff["workspace"], str(self.workspace.resolve()))
         self.assertEqual(
             handoff["weekly_brief"]["automation_key"],
-            "researchramp:alpha:weekly-brief",
+            "areaday:alpha:weekly-brief",
         )
         self.assertIn("Domain Alpha", handoff["daily_review"]["name"])
         self.assertTrue(handoff["daily_review"]["only_when_due"])
@@ -173,7 +173,7 @@ class ContinuousStateTests(unittest.TestCase):
         self.assertEqual(weekly_handoff["section"], "weekly_brief")
         self.assertEqual(
             weekly_handoff["automation"]["automation_key"],
-            "researchramp:alpha:weekly-brief",
+            "areaday:alpha:weekly-brief",
         )
         self.assertNotIn("daily_discovery", weekly_handoff)
         self.assertNotIn("daily_review", weekly_handoff)
@@ -187,7 +187,7 @@ class ContinuousStateTests(unittest.TestCase):
         self.assertEqual(daily_handoff["section"], "daily_review")
         self.assertEqual(
             daily_handoff["automation"]["automation_key"],
-            "researchramp:alpha:daily-review",
+            "areaday:alpha:daily-review",
         )
         self.assertNotIn("weekly_brief", daily_handoff)
 
@@ -289,7 +289,7 @@ class ContinuousStateTests(unittest.TestCase):
         run_dir, output = write_prepared_run(
             workspace, "foreign-packet", payload, packet_workspace=other
         )
-        with self.assertRaisesRegex(ValueError, "different ResearchRamp workspace"):
+        with self.assertRaisesRegex(ValueError, "different AreaDay workspace"):
             finalize(workspace, output)
         self.assertTrue(run_dir.is_dir())
 

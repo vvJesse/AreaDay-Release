@@ -1,5 +1,5 @@
 ---
-name: researchramp-full-workflow
+name: areaday-full-workflow
 description: "Prepare one confirmed AreaDay domain, launch its verified calibration workbench, and finish the personalized vocabulary after the user's answers."
 ---
 

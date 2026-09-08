@@ -26,7 +26,7 @@ from continuous_workflow import _context_window, _verify_pdf_identity  # noqa: E
 from corpus_analysis import analyze_corpus, extract_pdf_text  # noqa: E402
 from corpus_selection import select_analysis_documents  # noqa: E402
 from research_profile import ProfileValidationError, validate_profile  # noqa: E402
-from researchramp_core import extract_arxiv_id  # noqa: E402
+from areaday_core import extract_arxiv_id  # noqa: E402
 from setup_dependencies import (  # noqa: E402
     CHINA_HF_MIRROR,
     OFFICIAL_HF_ENDPOINT,

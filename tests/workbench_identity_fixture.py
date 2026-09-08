@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 IDENTITY_PATH = "/api/identity"
-SERVICE = "researchramp-workbench"
+SERVICE = "areaday-workbench"
 IDENTITY_VERSION = 2
 
 

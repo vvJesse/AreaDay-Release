@@ -10,7 +10,7 @@ from pathlib import Path
 from domain_registry import validate_initialized_workspace
 from finalize_host_review import finalize_review as finalize_terminology
 from orthography_contract import orthography_summary_is_complete
-from researchramp_core import read_json, utc_now, write_json
+from areaday_core import read_json, utc_now, write_json
 from terminology_assets import load_finalized_terminology
 from vocabulary_cards import GLOSS_DATA_NAME, build_catalog
 

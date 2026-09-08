@@ -31,8 +31,8 @@ the complete workflow while the sandbox remains enabled.
 
 For user, a simple way to install it is to send either of these links to Codex or WorkBuddy and say `安装一下`:
 
-- Latest release: https://github.com/vvJesse/ResearchRamp/releases/latest
-- This repository: https://github.com/vvJesse/ResearchRamp
+- Latest release: https://github.com/vvJesse/AreaDay-Release/releases/latest
+- Release repository: https://github.com/vvJesse/AreaDay-Release
 
 The agent must read [INSTALL.md](INSTALL.md), select the delivery package for
 the current computer, and complete installation and verification. The user does

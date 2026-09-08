@@ -47,7 +47,7 @@ def download_licensed_open_access_pdf(
         with requester.get(
             url,
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; ResearchRamp/0.1; local academic client)",
+                "User-Agent": "Mozilla/5.0 (compatible; AreaDay/1.1; local academic client)",
                 "Accept": "application/pdf,application/octet-stream;q=0.9,*/*;q=0.2",
             },
             stream=True,
@@ -103,7 +103,7 @@ def download_openalex_content_pdf(
             url,
             headers={
                 "Authorization": f"Bearer {api_key}",
-                "User-Agent": "ResearchRamp/0.1 (local academic research client)",
+                "User-Agent": "AreaDay/1.1 (local academic research client)",
                 "Accept": "application/pdf,application/octet-stream;q=0.9",
             },
             stream=True,

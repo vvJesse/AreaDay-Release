@@ -28,8 +28,8 @@ WorkBuddy，并在任务完成后**重新启用沙箱**。
 对普通用户而言，最简单的安装方式是将以下任一链接发送给 Codex 或 WorkBuddy，
 并告诉它“安装一下”：
 
-- 最新版本：https://github.com/vvJesse/ResearchRamp/releases/latest
-- 本仓库：https://github.com/vvJesse/ResearchRamp
+- 最新版本：https://github.com/vvJesse/AreaDay-Release/releases/latest
+- 发布仓库：https://github.com/vvJesse/AreaDay-Release
 
 Agent 必须阅读 [INSTALL.md](INSTALL.md)，根据当前计算机选择正确的发布包，并完成
 安装和验证。用户无需自行挑选 GitHub 文件、解压 ZIP、移动文件夹、运行终端命令或

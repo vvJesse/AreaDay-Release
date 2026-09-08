@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive ResearchRamp from a confirmed profile to a verified calibration service.
+"""Drive AreaDay from a confirmed profile to a verified calibration service.
 
 This is the sole lifecycle owner for the unattended part of first-time setup.
 Discovery, review preparation, download, analysis, and finalization are internal
@@ -55,8 +55,8 @@ from open_workbench import (
 )
 from orthography_contract import orthography_summary_is_complete
 from research_profile import validate_profile
-from researchramp_license import enforce_business_license
-from researchramp_core import read_json, utc_now, write_json
+from areaday_license import enforce_business_license
+from areaday_core import read_json, utc_now, write_json
 from terminology_assets import load_finalized_terminology
 
 
@@ -85,8 +85,8 @@ def _json_get(port: int, path: str, *, domain_id: str | None = None) -> dict[str
     connection = http.client.HTTPConnection(HOST, port, timeout=2.0)
     headers = {"Accept": "application/json", "Connection": "close"}
     if domain_id is not None:
-        headers["X-ResearchRamp-Domain"] = domain_id
-        headers["X-ResearchRamp-API-Version"] = str(APP_API_VERSION)
+        headers["X-AreaDay-Domain"] = domain_id
+        headers["X-AreaDay-API-Version"] = str(APP_API_VERSION)
     try:
         connection.request("GET", path, headers=headers)
         response = connection.getresponse()

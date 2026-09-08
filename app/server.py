@@ -398,7 +398,7 @@ class AppHandler(BaseHTTPRequestHandler):
         self, parsed: Any, body: dict[str, Any] | None = None
     ) -> str | None:
         query_value = parse_qs(parsed.query).get("domain_id", [None])[0]
-        header_value = self.headers.get("X-ResearchRamp-Domain")
+        header_value = self.headers.get("X-AreaDay-Domain")
         body_value = (body or {}).get("domain_id")
         candidates = [value for value in (query_value, header_value, body_value) if value]
         if not candidates:
@@ -550,7 +550,7 @@ class AppHandler(BaseHTTPRequestHandler):
             except (ValueError, TypeError, json.JSONDecodeError) as error:
                 self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
             return
-        if self.headers.get("X-ResearchRamp-API-Version") != str(APP_API_VERSION):
+        if self.headers.get("X-AreaDay-API-Version") != str(APP_API_VERSION):
             self._send_api_json(
                 {
                     "error": (
@@ -840,7 +840,7 @@ def resolve_calibration_paths(args: argparse.Namespace) -> tuple[Path, Path, str
             args.state.resolve()
             if args.state is not None
             else vocabulary.parent
-            / f".researchramp-{vocabulary.stem}-{vocabulary_fingerprint}-session.json"
+            / f".areaday-{vocabulary.stem}-{vocabulary_fingerprint}-session.json"
         )
         label = args.label or vocabulary.stem
 

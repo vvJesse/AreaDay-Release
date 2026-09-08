@@ -20,7 +20,7 @@ from acquire_mini_corpus import (  # noqa: E402
     SearchAttempt,
     main,
 )
-from researchramp_core import read_json  # noqa: E402
+from areaday_core import read_json  # noqa: E402
 from tests.test_initial_pipeline import valid_test_profile  # noqa: E402
 
 

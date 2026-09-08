@@ -81,7 +81,7 @@ Allow the setup to finish. The delivery ZIP already contains Python, packages,
 and models; do not download or independently resolve Python dependencies. When
 OpenAlex has not been configured yet, setup selects anonymous access without
 opening a window or waiting for interactive input. The user can later run the
-platform `configure_openalex` script to add a key. Never ask them to paste an
+platform `configure_openalex` script with its reconfigure option to add a key. Never ask them to paste an
 OpenAlex API key into chat, and never print or expose its saved value.
 
 ### 5. Activate and verify

@@ -45,15 +45,15 @@ class PlatformInstallerContractTests(unittest.TestCase):
         self.assertNotIn("$OpenAlexSetupProcess", script)
         self.assertNotIn("/usr/", script)
 
-    def test_windows_openalex_setup_hides_key_input_and_writes_ascii_configuration(self) -> None:
+    def test_windows_openalex_setup_opens_the_configuration_file(self) -> None:
         script = (ROOT / "scripts" / "configure_openalex.ps1").read_text(encoding="utf-8")
-        self.assertIn("Read-Host -Prompt \"OpenAlex API key\" -AsSecureString", script)
+        self.assertIn("Start-Process $ConfigPath", script)
+        self.assertIn("Ensure-ConfigurationTemplate", script)
         self.assertIn('$Content = "[openalex]`napi_key = $ApiKey`n"', script)
         self.assertIn("[switch]$Reconfigure", script)
         self.assertIn("[switch]$Anonymous", script)
         self.assertIn('Save-Configuration "anonymous"', script)
-        self.assertNotIn("Start-Process notepad.exe", script)
-        self.assertNotIn("Start-Sleep -Milliseconds 500", script)
+        self.assertNotIn("Read-Host", script)
 
 
 if __name__ == "__main__":

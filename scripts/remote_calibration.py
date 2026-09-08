@@ -14,7 +14,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Any
 
-from researchramp_license import (
+from areaday_license import (
     DEFAULT_PRODUCTION_ACTIVATION_SERVER,
     production_license_path,
 )

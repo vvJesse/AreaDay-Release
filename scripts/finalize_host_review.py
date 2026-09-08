@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from researchramp_core import read_json, utc_now, write_json, write_jsonl
+from areaday_core import read_json, utc_now, write_json, write_jsonl
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:

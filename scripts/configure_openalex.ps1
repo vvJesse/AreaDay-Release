@@ -7,8 +7,9 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillDir = Split-Path -Parent $ScriptDir
 $HelpPath = Join-Path $SkillDir "assets\openalex-help.html"
-$ConfigDir = if ($env:RESEARCHRAMP_CONFIG_DIR) { $env:RESEARCHRAMP_CONFIG_DIR } else { Join-Path $HOME ".researchramp" }
+$ConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { Join-Path $HOME ".areaday" }
 $ConfigPath = Join-Path $ConfigDir "credentials.ini"
+$LegacyConfigPath = Join-Path $HOME ".researchramp\credentials.ini"
 $Utf8 = [Text.UTF8Encoding]::new($false)
 
 if (-not (Test-Path -LiteralPath $HelpPath -PathType Leaf)) {
@@ -36,33 +37,22 @@ function Restrict-Configuration {
 function Save-Configuration {
     param([Parameter(Mandatory)][string]$ApiKey)
     New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
-    # Keep this credential file ASCII-only so localized Windows editors cannot
-    # misidentify its encoding and show the user garbled instructional text.
     $Content = "[openalex]`napi_key = $ApiKey`n"
     [IO.File]::WriteAllText($ConfigPath, $Content, $Utf8)
     Restrict-Configuration
 }
 
 if ($Anonymous) {
+    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf) -and (Test-Path -LiteralPath $LegacyConfigPath -PathType Leaf)) {
+        New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+        Copy-Item -LiteralPath $LegacyConfigPath -Destination $ConfigPath
+        Restrict-Configuration
+        Write-Host "OpenAlex configuration migrated to $ConfigPath"
+        exit 0
+    }
     Save-Configuration "anonymous"
     Write-Host "OpenAlex anonymous access selected at $ConfigPath"
     exit 0
-}
-
-function Read-OpenAlexKey {
-    Write-Host "Paste the OpenAlex API key at the hidden prompt below."
-    Write-Host "Enter anonymous if you want to use OpenAlex without a key."
-    $SecureInput = Read-Host -Prompt "OpenAlex API key" -AsSecureString
-    $Pointer = [IntPtr]::Zero
-    try {
-        $Pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureInput)
-        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($Pointer).Trim()
-    } finally {
-        if ($Pointer -ne [IntPtr]::Zero) {
-            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Pointer)
-        }
-        $SecureInput.Dispose()
-    }
 }
 
 function Test-OpenAlexKey {
@@ -82,11 +72,28 @@ function Test-OpenAlexKey {
     }
 }
 
-$SetupHelpOpened = $false
-function Open-SetupHelp {
-    if ($script:SetupHelpOpened) { return }
+function Ensure-ConfigurationTemplate {
+    New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf) -and (Test-Path -LiteralPath $LegacyConfigPath -PathType Leaf)) {
+        Copy-Item -LiteralPath $LegacyConfigPath -Destination $ConfigPath
+        Restrict-Configuration
+    }
+    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
+        [IO.File]::WriteAllText($ConfigPath, "[openalex]`napi_key = `n", $Utf8)
+        Restrict-Configuration
+    }
+}
+
+$SetupFilesOpened = $false
+function Open-SetupFiles {
+    if ($script:SetupFilesOpened) { return }
+    Ensure-ConfigurationTemplate
     Start-Process $HelpPath
-    $script:SetupHelpOpened = $true
+    Start-Process $ConfigPath
+    $script:SetupFilesOpened = $true
+    Write-Host "OpenAlex configuration file: $ConfigPath"
+    Write-Host "On Windows, its default location is %USERPROFILE%\.areaday\credentials.ini."
+    Write-Host "Paste the key after 'api_key =', then save the file."
 }
 
 $ApiKey = if ($Reconfigure) { "" } else { Read-Setting "api_key" }
@@ -101,12 +108,19 @@ if (-not [string]::IsNullOrWhiteSpace($ApiKey)) {
         Write-Host "OpenAlex key verified at $ConfigPath"
         exit 0
     }
-    Write-Warning "The saved OpenAlex key could not be verified. Enter it again."
+    Write-Warning "The saved OpenAlex key could not be verified. Replace it in the configuration file."
 }
 
-Open-SetupHelp
+Open-SetupFiles
+$LastAttemptedValue = if ($Reconfigure) { Read-Setting "api_key" } else { $ApiKey }
 while ($true) {
-    $ApiKey = Read-OpenAlexKey
+    $ApiKey = Read-Setting "api_key"
+
+    if ([string]::IsNullOrWhiteSpace($ApiKey) -or $ApiKey -eq $LastAttemptedValue) {
+        Start-Sleep -Milliseconds 500
+        continue
+    }
+    $LastAttemptedValue = $ApiKey
 
     if ($ApiKey -eq "anonymous") {
         Save-Configuration $ApiKey
@@ -114,7 +128,7 @@ while ($true) {
         exit 0
     }
     if ($ApiKey -notmatch "^[A-Za-z0-9_-]{12,200}$") {
-        Write-Warning "OpenAlex did not recognize that value. Paste the complete API key, or enter anonymous."
+        Write-Warning "OpenAlex did not recognize the saved value. Replace it in the configuration file."
         continue
     }
 
@@ -125,7 +139,7 @@ while ($true) {
         exit 0
     }
     if ($Validation -eq "invalid") {
-        Write-Warning "OpenAlex did not recognize that key. Copy the complete key from OpenAlex Settings and try again."
+        Write-Warning "OpenAlex did not recognize that key. Copy the complete key from OpenAlex Settings, replace it in the configuration file, and save."
         continue
     }
     throw "Could not connect to OpenAlex to verify the key. Run this setup again when OpenAlex is reachable."

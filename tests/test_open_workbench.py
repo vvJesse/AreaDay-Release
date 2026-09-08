@@ -35,7 +35,7 @@ def identity(
     domain_ids: tuple[str, ...] = ("domain-a",),
 ) -> dict[str, object]:
     return {
-        "service": "researchramp-workbench",
+        "service": "areaday-workbench",
         "identity_version": launcher.WORKBENCH_IDENTITY_VERSION,
         "registry": str(registry.expanduser().resolve()),
         "instance_id": instance_id,

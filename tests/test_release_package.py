@@ -48,7 +48,7 @@ class ReleasePackageTests(unittest.TestCase):
             self.assertIn('display_name: "AreaDay"', metadata)
             self.assertIn("areaday/scripts/install.sh", names)
             self.assertIn("areaday/scripts/install.ps1", names)
-            self.assertIn("areaday/scripts/researchramp_license.py", names)
+            self.assertIn("areaday/scripts/areaday_license.py", names)
             self.assertIn("areaday/scripts/onnx_embeddings.py", names)
             self.assertIn("onnxruntime==1.29.0", text_payload)
             self.assertNotIn("sentence-transformers==6.0.0", text_payload)

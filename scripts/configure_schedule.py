@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Save one ResearchRamp schedule preference and emit exactly one task handoff."""
+"""Save one AreaDay schedule preference and emit exactly one task handoff."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from generate_brief import (
     DomainSelectionRequired,
     resolve_workspace,
 )
-from researchramp_license import enforce_business_license
+from areaday_license import enforce_business_license
 
 
 def valid_time(value: str) -> str:
