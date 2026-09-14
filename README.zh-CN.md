@@ -25,15 +25,15 @@ WorkBuddy，并在任务完成后**重新启用沙箱**。
 
 ## 安装
 
-对普通用户而言，最简单的安装方式是将以下任一链接发送给 Codex 或 WorkBuddy，
-并告诉它“安装一下”：
+建议先从[最新版本](https://github.com/vvJesse/AreaDay-Release/releases/latest)
+下载与电脑系统匹配的完整安装 ZIP。然后在 Codex 或 WorkBuddy 中发送发布仓库链接、
+“帮我安装这个 Skill。”以及本地 ZIP 的完整路径，并把随购买获得的许可证文件拖入
+同一条消息后再发送。
 
-- 最新版本：https://github.com/vvJesse/AreaDay-Release/releases/latest
-- 发布仓库：https://github.com/vvJesse/AreaDay-Release
-
-Agent 必须阅读 [INSTALL.md](INSTALL.md)，根据当前计算机选择正确的发布包，并完成
-安装和验证。用户无需自行挑选 GitHub 文件、解压 ZIP、移动文件夹、运行终端命令或
-安装依赖。
+完整步骤、安装包直链和首次使用说明见
+[AreaDay 安装和使用指南](docs/customer-guide/AreaDay-安装和使用指南.md)。
+Agent 必须阅读 [INSTALL.md](INSTALL.md)，完成安装、激活和验证。用户无需自行解压
+ZIP、移动文件夹、运行终端命令或安装依赖。
 
 目前支持的发布平台：
 

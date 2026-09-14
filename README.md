@@ -29,15 +29,17 @@ the complete workflow while the sandbox remains enabled.
 
 ## Install
 
-For user, a simple way to install it is to send either of these links to Codex or WorkBuddy and say `安装一下`:
+First download the complete delivery ZIP for the current computer from the
+[latest release](https://github.com/vvJesse/AreaDay-Release/releases/latest).
+In a new Codex or WorkBuddy task, send the release repository URL, the request
+`帮我安装这个 Skill。`, and the ZIP's full local path. Drag the license file
+received with the purchase into the same message, then send it.
 
-- Latest release: https://github.com/vvJesse/AreaDay-Release/releases/latest
-- Release repository: https://github.com/vvJesse/AreaDay-Release
-
-The agent must read [INSTALL.md](INSTALL.md), select the delivery package for
-the current computer, and complete installation and verification. The user does
-not need to choose among GitHub files, extract a ZIP, move folders, run terminal
-commands, or install dependencies.
+See the Chinese [AreaDay installation and usage guide](docs/customer-guide/AreaDay-安装和使用指南.md)
+for direct download links and the complete first-use flow. The agent must read
+[INSTALL.md](INSTALL.md) and complete installation, activation, and verification.
+The user does not need to extract the ZIP, move folders, run terminal commands,
+or install dependencies.
 
 Supported release platforms:
 
