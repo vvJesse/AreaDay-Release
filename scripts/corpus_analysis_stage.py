@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -178,18 +179,198 @@ def select(workspace: Path) -> int:
         append_sample(workspace, "select")
 
 
-def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+LEXICAL_DB_NAME = ".lexical-work.sqlite3"
+
+
+def _open_lexical_db(path: Path) -> sqlite3.Connection:
+    connection = sqlite3.connect(str(path))
+    connection.execute("PRAGMA temp_store=FILE")
+    connection.execute("PRAGMA cache_size=-16384")
+    connection.execute("PRAGMA mmap_size=0")
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS documents (
+            work_id TEXT PRIMARY KEY, ordinal INTEGER NOT NULL, text_path TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS lemma (
+            work_id TEXT NOT NULL, lemma TEXT NOT NULL, count INTEGER NOT NULL,
+            pos_json TEXT NOT NULL, surface_json TEXT NOT NULL, examples_json TEXT NOT NULL,
+            PRIMARY KEY (work_id, lemma)
+        );
+        CREATE TABLE IF NOT EXISTS term (
+            work_id TEXT NOT NULL, term TEXT NOT NULL, count INTEGER NOT NULL,
+            surface_json TEXT NOT NULL, examples_json TEXT NOT NULL,
+            PRIMARY KEY (work_id, term)
+        );
+        CREATE TABLE IF NOT EXISTS surface (
+            kind TEXT NOT NULL, key TEXT NOT NULL, work_id TEXT NOT NULL,
+            form TEXT NOT NULL, count INTEGER NOT NULL,
+            PRIMARY KEY (kind, key, work_id, form)
+        );
+        CREATE TABLE IF NOT EXISTS example (
+            kind TEXT NOT NULL, key TEXT NOT NULL, work_id TEXT NOT NULL,
+            sentence TEXT NOT NULL, ordinal INTEGER NOT NULL,
+            PRIMARY KEY (kind, key, work_id, sentence)
+        );
+        CREATE TABLE IF NOT EXISTS acronym (
+            acronym TEXT NOT NULL, expansion TEXT NOT NULL, work_id TEXT NOT NULL,
+            count INTEGER NOT NULL, PRIMARY KEY (acronym, expansion, work_id)
+        );
+        CREATE TABLE IF NOT EXISTS stats (
+            key TEXT NOT NULL, work_id TEXT NOT NULL DEFAULT '', value TEXT NOT NULL,
+            PRIMARY KEY (key, work_id)
+        );
+        """
+    )
+    connection.commit()
+    return connection
+
+
+def _upsert_lexical_document(connection: sqlite3.Connection, ordinal: int, document: dict[str, Any], raw: dict[str, Any]) -> None:
+    work_id = str(document["openalex_id"])
+    connection.execute(
+        "INSERT INTO documents(work_id, ordinal, text_path, metadata_json) VALUES(?,?,?,?) "
+        "ON CONFLICT(work_id) DO UPDATE SET ordinal=excluded.ordinal, text_path=excluded.text_path, metadata_json=excluded.metadata_json",
+        (work_id, ordinal, str(document.get("text") or ""), json.dumps(document, ensure_ascii=False, sort_keys=True)),
+    )
+    for lemma, count in raw.get("lemma_counts", {}).items():
+        pos = raw.get("lemma_pos", {}).get(lemma, {})
+        surfaces = raw.get("lemma_surfaces", {}).get(lemma, {})
+        examples = raw.get("lemma_examples", {}).get(lemma, [])
+        connection.execute(
+            "INSERT INTO lemma(work_id, lemma, count, pos_json, surface_json, examples_json) VALUES(?,?,?,?,?,?) "
+            "ON CONFLICT(work_id, lemma) DO UPDATE SET count=excluded.count, pos_json=excluded.pos_json, surface_json=excluded.surface_json, examples_json=excluded.examples_json",
+            (work_id, lemma, int(count), json.dumps(pos), json.dumps(surfaces), json.dumps(examples, ensure_ascii=False)),
+        )
+        for form, value in surfaces.items():
+            connection.execute("INSERT OR REPLACE INTO surface(kind,key,work_id,form,count) VALUES('lemma',?,?,?,?)", (lemma, work_id, form, int(value)))
+        for index, example in enumerate(examples):
+            connection.execute("INSERT OR REPLACE INTO example(kind,key,work_id,sentence,ordinal) VALUES('lemma',?,?,?,?)", (lemma, work_id, str(example.get("sentence") or ""), index))
+    for term, count in raw.get("term_counts", {}).items():
+        surfaces = raw.get("term_surfaces", {}).get(term, {})
+        examples = raw.get("term_examples", {}).get(term, [])
+        connection.execute(
+            "INSERT INTO term(work_id, term, count, surface_json, examples_json) VALUES(?,?,?,?,?) "
+            "ON CONFLICT(work_id, term) DO UPDATE SET count=excluded.count, surface_json=excluded.surface_json, examples_json=excluded.examples_json",
+            (work_id, term, int(count), json.dumps(surfaces), json.dumps(examples, ensure_ascii=False)),
+        )
+        for form, value in surfaces.items():
+            connection.execute("INSERT OR REPLACE INTO surface(kind,key,work_id,form,count) VALUES('term',?,?,?,?)", (term, work_id, form, int(value)))
+        for index, example in enumerate(examples):
+            connection.execute("INSERT OR REPLACE INTO example(kind,key,work_id,sentence,ordinal) VALUES('term',?,?,?,?)", (term, work_id, str(example.get("sentence") or ""), index))
+    for acronym, expansions in raw.get("acronyms", {}).items():
+        for expansion, count in expansions.items():
+            connection.execute("INSERT OR REPLACE INTO acronym(acronym, expansion, work_id, count) VALUES(?,?,?,?)", (acronym, expansion, work_id, int(count)))
+    connection.execute("INSERT OR REPLACE INTO stats(key,work_id,value) VALUES('processed_spacy_token_count',?,?)", (work_id, str(int(raw.get("processed_spacy_token_count") or 0))))
+    connection.commit()
+
+
+def lexical(workspace: Path) -> int:
+    """Parse included papers one at a time and checkpoint each transaction."""
+    from lexical_assets import build_lexical_assets, load_spacy_pipeline
+
+    analysis = workspace / "analysis"
+    analysis.mkdir(parents=True, exist_ok=True)
+    records = _rows(analysis / "paper-work-records.jsonl")
+    included_ids: set[str] | None = None
+    summary_path = analysis / "selection-summary.json"
+    if not summary_path.is_file():
+        raise FileNotFoundError(f"selection checkpoint missing: {summary_path}")
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if not isinstance(summary, dict) or not isinstance(summary.get("included_work_ids"), list):
+        raise ValueError("selection-summary.json must contain included_work_ids list")
+    included_ids = {str(value) for value in summary["included_work_ids"]}
+    documents = [record for record in records if record.get("status") == "extracted" and str(record.get("openalex_id")) in included_ids]
+    db_path = analysis / LEXICAL_DB_NAME
+    connection = _open_lexical_db(db_path)
     try:
-        with temporary.open("w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        nlp = load_spacy_pipeline() if documents else None
+        for ordinal, document in enumerate(documents):
+            work_id = str(document["openalex_id"])
+            already = connection.execute("SELECT 1 FROM documents WHERE work_id=?", (work_id,)).fetchone()
+            if already:
+                continue
+            text_path = Path(str(document.get("text") or ""))
+            # Resolve relative paths against the workspace for hand-authored
+            # fixtures while retaining the original public path field.
+            if not text_path.is_absolute():
+                text_path = workspace / text_path
+            text = text_path.read_text(encoding="utf-8")
+            assets = build_lexical_assets(
+                [{"openalex_id": work_id, "clean_text": text}],
+                nlp=nlp,
+                include_raw_document=True,
+            )
+            raw = assets.get("raw_document") or {"openalex_id": work_id}
+            _upsert_lexical_document(connection, ordinal, document, raw)
+            append_sample(workspace, "lexical")
     except BaseException:
-        temporary.unlink(missing_ok=True)
+        # The DB is intentionally left in place as a resumable checkpoint.
         raise
+    finally:
+        connection.close()
+        append_sample(workspace, "lexical")
+    return 0
+
+
+def serialize(workspace: Path) -> int:
+    """Stream compact lexical rows into the existing formal analysis files."""
+    from corpus_analysis import serialize_lexical_stage, validate_serialized_outputs
+    from lexical_assets import assets_from_sqlite
+
+    db_path = workspace / "analysis" / LEXICAL_DB_NAME
+    if not db_path.is_file():
+        raise FileNotFoundError(f"lexical checkpoint missing: {db_path}")
+    assets = assets_from_sqlite(db_path)
+    records = _rows(workspace / "analysis" / "paper-work-records.jsonl")
+    profile = None
+    for name in ("research-profile-input.json", "research-profile.json"):
+        path = workspace / name
+        if path.is_file():
+            profile = json.loads(path.read_text(encoding="utf-8"))
+            break
+    analysis_dir = workspace / "analysis"
+    staging_dir = analysis_dir / f".lexical-serialize-staging-{os.getpid()}"
+    shutil.rmtree(staging_dir, ignore_errors=True)
+    staging_dir.mkdir(parents=True, exist_ok=False)
+    formal_names = (
+        "pre-orthography-vocabulary-map.tsv", "vocabulary-map.tsv", "vocabulary.tsv",
+        "pre-orthography-vocabulary-map.jsonl", "vocabulary-map.jsonl",
+        "raw-terminology-candidates.tsv", "raw-terminology-candidates.jsonl",
+        "terminology-candidates.tsv", "terminology-candidates.jsonl",
+        "orthography-review-input.json", "terminology-review-input.json",
+        "paper-work-records.jsonl", "paper-decisions.jsonl", "papers.jsonl",
+        "corpus-stats.json", "summary.md",
+    )
+    # Invalidate any previous completion marker before doing work so failures
+    # cannot be mistaken for a successful resumed serialization.
+    (analysis_dir / "corpus-stats.json").unlink(missing_ok=True)
+    try:
+        serialize_lexical_stage(
+            workspace, assets, records=records, profile=profile, staging_dir=staging_dir
+        )
+        validate_serialized_outputs(staging_dir)
+        # The stats file is the sole completion marker. Invalidate any prior
+        # marker before publishing the rest, then publish the new marker last.
+        for name in formal_names:
+            if name == "corpus-stats.json":
+                continue
+            source = staging_dir / name
+            if not source.is_file():
+                raise FileNotFoundError(f"serialize staging output missing: {name}")
+            os.replace(source, analysis_dir / name)
+        os.replace(staging_dir / "corpus-stats.json", analysis_dir / "corpus-stats.json")
+        db_path.unlink()
+    except BaseException:
+        # Never leave a stale or partial completion marker after publication
+        # fails. The SQLite checkpoint remains available for recovery.
+        (analysis_dir / "corpus-stats.json").unlink(missing_ok=True)
+        raise
+    finally:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        append_sample(workspace, "serialize")
+    return 0
 
 
 def _publish_selection_outputs(
@@ -243,11 +424,19 @@ def main() -> int:
     extract_parser.add_argument("--workspace", type=Path, required=True)
     select_parser = subparsers.add_parser("select")
     select_parser.add_argument("--workspace", type=Path, required=True)
+    lexical_parser = subparsers.add_parser("lexical")
+    lexical_parser.add_argument("--workspace", type=Path, required=True)
+    serialize_parser = subparsers.add_parser("serialize")
+    serialize_parser.add_argument("--workspace", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "extract":
         return extract(args.workspace.expanduser().resolve())
     if args.command == "select":
         return select(args.workspace.expanduser().resolve())
+    if args.command == "lexical":
+        return lexical(args.workspace.expanduser().resolve())
+    if args.command == "serialize":
+        return serialize(args.workspace.expanduser().resolve())
     return 2
 
 

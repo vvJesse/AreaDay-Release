@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import math
 import re
+import sqlite3
+import json
 from collections import Counter, defaultdict, deque
 from typing import Any, Iterable
 
 
 SHARED_TERMINOLOGY_MIN_DOCUMENT_SHARE = 0.10
-SPACY_PIPE_BATCH_SIZE = 4
+# A single document/chunk in flight is intentional: the lexical stage runs in
+# a short-lived process with a small memory budget.  Keep this constant public
+# because callers and tests use it as part of the stage contract.
+SPACY_PIPE_BATCH_SIZE = 1
+MAX_CHUNK_CHARACTERS = 50_000
+MAX_CHUNK_TOKENS = 10_000
 
 
 def select_shared_terminology_candidates(
@@ -50,29 +57,127 @@ def load_spacy_pipeline():
     return pipeline
 
 
-def text_chunks(text: str, maximum_characters: int = 350_000) -> Iterable[str]:
+def _whitespace_token_count(value: str) -> int:
+    return len(value.split())
+
+
+def _hard_chunks(text: str, maximum_characters: int, maximum_tokens: int) -> Iterable[str]:
+    """Split an overlong sentence without dropping or reordering characters."""
+    if not text:
+        return
+    start = 0
+    length = len(text)
+    while start < length:
+        end = min(length, start + maximum_characters)
+        # A normal character window can still contain too many whitespace
+        # tokens.  Move the boundary left to the end of the Nth token.
+        while end > start and _whitespace_token_count(text[start:end]) > maximum_tokens:
+            matches = list(re.finditer(r"\S+", text[start:end]))
+            if not matches or len(matches) <= maximum_tokens:
+                break
+            end = start + matches[maximum_tokens - 1].end()
+        if end <= start:
+            end = min(length, start + maximum_characters)
+        # A single token may be larger than the character bound; hard cutting
+        # it is the only valid fallback, and is explicitly part of TASK-04.
+        yield text[start:end]
+        start = end
+
+
+def _sentence_chunks(paragraph: str) -> Iterable[str]:
+    """Yield sentence-sized pieces, retaining every non-empty character."""
+    # This deliberately remains a light-weight splitter. spaCy is not loaded
+    # by the controller/extract/select/serialize processes.
+    pattern = re.compile(r".+?(?:[.!?](?:[\"')\]}]*)?(?=\s|$)|$)", re.DOTALL)
+    position = 0
+    for match in pattern.finditer(paragraph):
+        piece = paragraph[position : match.end()]
+        if piece.strip():
+            yield piece
+        position = match.end()
+    if position < len(paragraph) and paragraph[position:].strip():
+        yield paragraph[position:]
+
+
+def text_chunks(
+    text: str,
+    maximum_characters: int = MAX_CHUNK_CHARACTERS,
+    maximum_tokens: int = MAX_CHUNK_TOKENS,
+) -> Iterable[str]:
+    """Yield normalized paragraph chunks under both memory/input limits.
+
+    Paragraph order is preserved.  A paragraph that exceeds either bound is
+    split at sentence boundaries first; only a sentence that still exceeds a
+    bound is character-split.  Joining the returned chunks with ``\\n\\n``
+    reproduces the normalized source (paragraph outer whitespace removed).
+    """
+    if maximum_characters < 1 or maximum_tokens < 1:
+        raise ValueError("chunk limits must be positive")
     paragraphs = text.split("\n\n")
     current: list[str] = []
     current_size = 0
+    current_tokens = 0
     for paragraph in paragraphs:
         paragraph = paragraph.strip()
         if not paragraph:
             continue
-        if len(paragraph) > maximum_characters:
+        if (
+            len(paragraph) > maximum_characters
+            or _whitespace_token_count(paragraph) > maximum_tokens
+        ):
             if current:
                 yield "\n\n".join(current)
                 current = []
                 current_size = 0
-            for start in range(0, len(paragraph), maximum_characters):
-                yield paragraph[start : start + maximum_characters]
+                current_tokens = 0
+            sentence_parts: list[str] = []
+            sentence_size = 0
+            sentence_tokens = 0
+            for sentence in _sentence_chunks(paragraph):
+                sentence = sentence.strip()
+                sentence_len = len(sentence)
+                sentence_word_count = _whitespace_token_count(sentence)
+                if (
+                    sentence_len > maximum_characters
+                    or sentence_word_count > maximum_tokens
+                ):
+                    if sentence_parts:
+                        yield " ".join(sentence_parts)
+                        sentence_parts = []
+                        sentence_size = 0
+                        sentence_tokens = 0
+                    yield from _hard_chunks(
+                        sentence, maximum_characters, maximum_tokens
+                    )
+                    continue
+                addition = sentence_len + (1 if sentence_parts else 0)
+                if sentence_parts and (
+                    sentence_size + addition > maximum_characters
+                    or sentence_tokens + sentence_word_count > maximum_tokens
+                ):
+                    yield " ".join(sentence_parts)
+                    sentence_parts = []
+                    sentence_size = 0
+                    sentence_tokens = 0
+                sentence_parts.append(sentence)
+                sentence_size += sentence_len + (1 if sentence_size else 0)
+                sentence_tokens += sentence_word_count
+            if sentence_parts:
+                yield " ".join(sentence_parts)
             continue
         additional = len(paragraph) + (2 if current else 0)
-        if current and current_size + additional > maximum_characters:
+        paragraph_tokens = _whitespace_token_count(paragraph)
+        if current and (
+            current_size + additional > maximum_characters
+            or current_tokens + paragraph_tokens > maximum_tokens
+        ):
             yield "\n\n".join(current)
             current = []
             current_size = 0
+            current_tokens = 0
         current.append(paragraph)
         current_size += additional
+        current_tokens += paragraph_tokens
     if current:
         yield "\n\n".join(current)
 
@@ -151,8 +256,11 @@ def build_lexical_assets(
     documents: list[dict[str, Any]],
     *,
     nlp: Any | None = None,
+    include_raw_document: bool = False,
 ) -> dict[str, Any]:
     """Create lemma records and unreviewed multiword terminology candidates."""
+    if include_raw_document and len(documents) > 1:
+        raise ValueError("include_raw_document is only supported for one document")
     nlp = nlp or load_spacy_pipeline()
     lemma_by_document: dict[str, Counter[str]] = {}
     lemma_surfaces: dict[str, Counter[str]] = defaultdict(Counter)
@@ -360,7 +468,7 @@ def build_lexical_assets(
             item["term"],
         )
     )
-    return {
+    result = {
         "vocabulary": vocabulary,
         "terminology_candidates": terminology,
         "included_document_count": len(work_ids),
@@ -368,3 +476,170 @@ def build_lexical_assets(
         "content_lemma_token_count": total_lemma_tokens,
         "minimum_document_count": minimum_documents,
     }
+    if include_raw_document:
+        work_id = work_ids[0] if work_ids else None
+        result["raw_document"] = {
+            "openalex_id": work_id,
+            "lemma_counts": dict(lemma_by_document[work_id]) if work_id else {},
+            "term_counts": dict(term_by_document[work_id]) if work_id else {},
+            "lemma_surfaces": {lemma: dict(values) for lemma, values in lemma_surfaces.items()},
+            "lemma_pos": {lemma: dict(values) for lemma, values in lemma_pos.items()},
+            "lemma_examples": {lemma: list(values) for lemma, values in lemma_examples.items()},
+            "term_surfaces": {term: dict(values) for term, values in term_surfaces.items()},
+            "term_examples": {term: list(values) for term, values in term_examples.items()},
+            "acronyms": {acronym: dict(values) for acronym, values in acronym_expansions.items()},
+            "processed_spacy_token_count": total_processed_tokens,
+        }
+    return result
+
+
+def assets_from_sqlite(db_path: Any) -> dict[str, Any]:
+    """Stream SQLite rows, retaining at most one lemma/term group at once."""
+    connection = sqlite3.connect(str(db_path))
+    try:
+        work_ids: list[str] = []
+        cursor = connection.execute("SELECT work_id FROM documents ORDER BY ordinal")
+        while batch := cursor.fetchmany(256):
+            work_ids.extend(str(row[0]) for row in batch)
+        minimum_documents = 2 if len(work_ids) >= 3 else 1
+        token_row = connection.execute("SELECT COALESCE(SUM(count),0) FROM lemma").fetchone()
+        total_lemma_tokens = int(token_row[0] or 0)
+        processed_row = connection.execute(
+            "SELECT COALESCE(SUM(CAST(value AS INTEGER)),0) FROM stats "
+            "WHERE key='processed_spacy_token_count'"
+        ).fetchone()
+        total_processed_tokens = int(processed_row[0] or 0)
+
+        vocabulary: list[dict[str, Any]] = []
+        cursor = connection.execute(
+            "SELECT lemma.work_id, lemma.lemma, lemma.count, lemma.pos_json, "
+            "lemma.surface_json, lemma.examples_json FROM lemma "
+            "JOIN documents ON documents.work_id=lemma.work_id "
+            "ORDER BY lemma.lemma, documents.ordinal"
+        )
+        current: str | None = None
+        counts: dict[str, int] = {}
+        positions: Counter[str] = Counter()
+        surfaces: Counter[str] = Counter()
+        examples: list[dict[str, str]] = []
+
+        def emit_lemma(lemma: str | None) -> None:
+            if lemma is None:
+                return
+            per_document = [counts.get(work_id, 0) for work_id in work_ids]
+            total_count = sum(per_document)
+            document_count = sum(value > 0 for value in per_document)
+            if total_count < (3 if len(work_ids) >= 3 else 2) or document_count < minimum_documents:
+                return
+            vocabulary.append({
+                "lemma": lemma,
+                "part_of_speech": positions.most_common(1)[0][0],
+                "total_count": total_count,
+                "frequency_per_million": round(total_count * 1_000_000 / total_lemma_tokens, 3) if total_lemma_tokens else 0.0,
+                "document_count": document_count,
+                "document_share": round(document_count / len(work_ids), 6),
+                "dispersion": round(juilland_dispersion(per_document), 6),
+                "per_document_counts": {work_id: counts[work_id] for work_id in work_ids if counts.get(work_id)},
+                "surface_forms": [{"form": form, "count": value} for form, value in surfaces.most_common(8)],
+                "representative_sentences": examples,
+                "source_papers": [work_id for work_id in work_ids if counts.get(work_id)],
+            })
+
+        while batch := cursor.fetchmany(256):
+            for work_id, lemma, count, pos_json, surface_json, examples_json in batch:
+                lemma = str(lemma)
+                if current != lemma:
+                    emit_lemma(current)
+                    current, counts, positions, surfaces, examples = lemma, {}, Counter(), Counter(), []
+                counts[str(work_id)] = int(count)
+                for key, value in json.loads(pos_json or "{}").items():
+                    positions[key] += int(value)
+                for key, value in json.loads(surface_json or "{}").items():
+                    surfaces[key] += int(value)
+                for value in json.loads(examples_json or "[]"):
+                    if len(examples) >= 3:
+                        break
+                    if 35 <= len(value.get("sentence", "")) <= 500 and not any(item.get("sentence") == value.get("sentence") for item in examples):
+                        examples.append(value)
+        emit_lemma(current)
+        vocabulary.sort(key=lambda item: (-item["document_count"], -item["dispersion"], -item["total_count"], item["lemma"]))
+
+        # A compact summary of term totals is sufficient for C-value nesting;
+        # only eligible terms retain their final per-document/source fields.
+        term_summaries: dict[str, tuple[int, int, list[str], list[dict[str, Any]], Counter[str]]] = {}
+        cursor = connection.execute(
+            "SELECT term.work_id, term.term, term.count, term.surface_json, term.examples_json "
+            "FROM term JOIN documents ON documents.work_id=term.work_id "
+            "ORDER BY term.term, documents.ordinal"
+        )
+        current = None
+        counts = {}
+        surfaces = Counter()
+        examples = []
+
+        def emit_term(term: str | None) -> None:
+            if term is None:
+                return
+            total = sum(counts.values())
+            docs = [work_id for work_id in work_ids if counts.get(work_id)]
+            if total >= 2 and len(docs) >= minimum_documents:
+                term_summaries[term] = (total, len(docs), docs, list(examples), Counter(surfaces))
+
+        while batch := cursor.fetchmany(256):
+            for work_id, term, count, surface_json, examples_json in batch:
+                term = str(term)
+                if current != term:
+                    emit_term(current)
+                    current, counts, surfaces, examples = term, {}, Counter(), []
+                counts[str(work_id)] = int(count)
+                for key, value in json.loads(surface_json or "{}").items():
+                    surfaces[key] += int(value)
+                for value in json.loads(examples_json or "[]"):
+                    if len(examples) >= 3:
+                        break
+                    if 35 <= len(value.get("sentence", "")) <= 500 and not any(item.get("sentence") == value.get("sentence") for item in examples):
+                        examples.append(value)
+        emit_term(current)
+        term_total_counts = {term: data[0] for term, data in term_summaries.items()}
+        parent_frequencies: dict[str, list[int]] = defaultdict(list)
+        eligible_terms = set(term_summaries)
+        for parent in eligible_terms:
+            tokens = parent.split()
+            if len(tokens) <= 2:
+                continue
+            for length in range(2, len(tokens)):
+                for start in range(0, len(tokens) - length + 1):
+                    child = " ".join(tokens[start:start + length])
+                    if child in eligible_terms:
+                        parent_frequencies[child].append(term_total_counts[parent])
+        acronym_expansions: dict[str, set[str]] = defaultdict(set)
+        cursor = connection.execute("SELECT acronym, expansion FROM acronym ORDER BY acronym, expansion")
+        while batch := cursor.fetchmany(256):
+            for acronym, expansion in batch:
+                acronym_expansions[str(acronym)].add(str(expansion))
+        terminology: list[dict[str, Any]] = []
+        for term, (count, doc_count, docs, term_examples, term_surfaces) in term_summaries.items():
+            nested = parent_frequencies.get(term) or []
+            adjusted = count - (sum(nested) / len(nested) if nested else 0)
+            terminology.append({
+                "term": term,
+                "total_count": count,
+                "document_count": doc_count,
+                "document_share": round(doc_count / len(work_ids), 6),
+                "c_value": round(max(0.0, math.log2(len(term.split())) * adjusted), 6),
+                "surface_forms": [{"form": form, "count": value} for form, value in term_surfaces.most_common(6)],
+                "acronyms": sorted(acronym for acronym, expansions in acronym_expansions.items() if term in expansions),
+                "representative_sentences": term_examples,
+                "source_papers": docs,
+            })
+        terminology.sort(key=lambda item: (-item["document_count"], -item["c_value"], -item["total_count"], item["term"]))
+        return {
+            "vocabulary": vocabulary,
+            "terminology_candidates": terminology,
+            "included_document_count": len(work_ids),
+            "processed_spacy_token_count": total_processed_tokens,
+            "content_lemma_token_count": total_lemma_tokens,
+            "minimum_document_count": minimum_documents,
+        }
+    finally:
+        connection.close()

@@ -365,8 +365,15 @@ class SmallEndToEndTests(unittest.TestCase):
                     side_effect=fake_pdf_download,
                 ),
                 patch(
-                    "acquire_mini_corpus.analyze_corpus",
-                    return_value={"analyzed_papers": 2, "synthetic": True},
+                    "acquire_mini_corpus.run_analysis_stages",
+                    side_effect=lambda path: (
+                        (path / "analysis").mkdir(parents=True, exist_ok=True),
+                        (path / "analysis" / "corpus-stats.json").write_text(
+                            json.dumps({"analyzed_papers": 2, "synthetic": True}),
+                            encoding="utf-8",
+                        ),
+                        0,
+                    )[-1],
                 ),
                 contextlib.redirect_stdout(io.StringIO()),
             ):

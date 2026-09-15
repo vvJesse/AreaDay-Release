@@ -4,16 +4,19 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
+import platform
 import re
 import sys
+import subprocess
 import time
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import requests
 
@@ -26,7 +29,6 @@ from concurrent_downloads import (
 )
 from provider_discovery import collect_provider_lanes
 from run_timing import RunTimeline
-from corpus_analysis import analyze_corpus
 from process_metrics import SystemMemoryMonitor
 from domain_registry import DomainRegistry, default_registry_path
 from research_profile import validate_profile
@@ -58,6 +60,141 @@ ARXIV_CANDIDATE_CACHE_KIND = "areaday.arxiv.candidates"
 ARXIV_CANDIDATE_CACHE_SCHEMA_VERSION = 2
 MAX_RETRIEVAL_STRATEGIES = 3
 RETRIEVAL_STATE_NAME = "retrieval-strategy-state.json"
+INSUFFICIENT_MEMORY_CODE = 75
+STAGE_MEMORY_FLOOR_BYTES = 512 * 1024 * 1024
+
+
+def read_mem_available_bytes() -> int | None:
+    """Read the admission-control value immediately before each heavy stage."""
+    if platform.system() != "Linux":
+        return None
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) * 1024
+    except (OSError, ValueError, IndexError):
+        return 0
+    # Linux with a missing/malformed field fails closed.
+    return 0
+
+
+def _analysis_outputs_complete(analysis_dir: Path) -> bool:
+    """Validate every formal output; corpus-stats is the completion marker."""
+    def valid_json(path: Path) -> bool:
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+            return True
+        except (OSError, ValueError, UnicodeDecodeError):
+            return False
+
+    def valid_jsonl(path: Path) -> bool:
+        try:
+            with path.open(encoding="utf-8") as handle:
+                for line in handle:
+                    if line.strip():
+                        json.loads(line)
+            return path.is_file()
+        except (OSError, ValueError, UnicodeDecodeError):
+            return False
+
+    stats_path = analysis_dir / "corpus-stats.json"
+    if not valid_json(stats_path):
+        return False
+    try:
+        stats = json.loads(stats_path.read_text(encoding="utf-8"))
+        if not isinstance(stats, dict) or stats.get("schema_version") != 2:
+            return False
+        outputs = stats.get("outputs")
+        if not isinstance(outputs, dict):
+            return False
+        required_outputs = {
+            "vocabulary_tsv": "vocabulary-map.tsv",
+            "vocabulary_jsonl": "vocabulary-map.jsonl",
+            "terminology_tsv": "terminology-candidates.tsv",
+            "terminology_jsonl": "terminology-candidates.jsonl",
+            "raw_terminology_jsonl": "raw-terminology-candidates.jsonl",
+            "terminology_review_input": "terminology-review-input.json",
+            "orthography_review_input": "orthography-review-input.json",
+            "paper_decisions": "paper-decisions.jsonl",
+            "text": "text/",
+            "report": "summary.md",
+        }
+        if any(outputs.get(key) != f"analysis/{name}" for key, name in required_outputs.items()):
+            return False
+        for name in ("orthography-review-input.json", "terminology-review-input.json"):
+            if not valid_json(analysis_dir / name):
+                return False
+        for name in (
+            "pre-orthography-vocabulary-map.jsonl", "vocabulary-map.jsonl",
+            "raw-terminology-candidates.jsonl", "terminology-candidates.jsonl",
+            "paper-decisions.jsonl", "papers.jsonl",
+        ):
+            if not valid_jsonl(analysis_dir / name):
+                return False
+        for name in (
+            "pre-orthography-vocabulary-map.tsv", "vocabulary-map.tsv", "vocabulary.tsv",
+            "raw-terminology-candidates.tsv", "terminology-candidates.tsv",
+        ):
+            path = analysis_dir / name
+            if not path.is_file():
+                return False
+            with path.open(encoding="utf-8", newline="") as handle:
+                if not next(csv.reader(handle, delimiter="\t"), None):
+                    return False
+        return (analysis_dir / "summary.md").is_file() and bool((analysis_dir / "summary.md").read_text(encoding="utf-8").strip())
+    except (OSError, ValueError, UnicodeDecodeError, csv.Error, StopIteration):
+        return False
+
+
+def run_analysis_stages(
+    workspace: Path,
+    *,
+    python_executable: str | None = None,
+    run: Callable[..., Any] | None = None,
+    memory_reader: Callable[[], int | None] | None = None,
+) -> int:
+    """Run extract/select/lexical/serialize in isolated, ordered processes."""
+    executable = python_executable or sys.executable
+    runner = run or subprocess.run
+    available = memory_reader or read_mem_available_bytes
+    stage_script = SKILL_DIR / "scripts" / "corpus_analysis_stage.py"
+    analysis_dir = workspace / "analysis"
+    stages = ["extract", "select", "lexical", "serialize"]
+    # Resume from the first incomplete formal checkpoint. A lexical SQLite
+    # file is deliberately not considered a successful stage: it is an
+    # internal checkpoint and therefore causes lexical+serialize to rerun.
+    if _analysis_outputs_complete(analysis_dir):
+        return 0
+    if (analysis_dir / "paper-work-records.jsonl").is_file():
+        try:
+            with (analysis_dir / "paper-work-records.jsonl").open(encoding="utf-8") as handle:
+                for line in handle:
+                    if line.strip():
+                        json.loads(line)
+            selection = json.loads((analysis_dir / "selection-summary.json").read_text(encoding="utf-8"))
+            if isinstance(selection, dict) and isinstance(selection.get("included_work_ids"), list):
+                stages = ["lexical", "serialize"]
+            else:
+                stages = ["select", "lexical", "serialize"]
+        except (OSError, ValueError, UnicodeDecodeError):
+            stages = ["select", "lexical", "serialize"]
+    for stage in stages:
+        measured = available()
+        if measured is not None and int(measured) < STAGE_MEMORY_FLOOR_BYTES:
+            print("insufficient_memory_before_stage", file=sys.stderr)
+            return INSUFFICIENT_MEMORY_CODE
+        # Deliberately no capture_output/text pipes: parent must not retain a
+        # heavy stage's complete stdout/stderr.
+        runner([executable, str(stage_script), stage, "--workspace", str(workspace)], check=True)
+    return 0
+
+
+def _run_monitored_analysis(workspace: Path) -> int:
+    monitor = SystemMemoryMonitor(workspace).start()
+    try:
+        return run_analysis_stages(workspace)
+    finally:
+        monitor.stop()
 
 
 @dataclass(frozen=True)
@@ -1275,20 +1412,15 @@ def main() -> int:
     has_usable_pdfs = successful > 0
     analysis: dict[str, Any] | None = None
     if args.analyze and has_usable_pdfs:
-        monitor = SystemMemoryMonitor(workspace).start()
-        try:
-            with timeline.phase(
-                "analysis",
-                details={"successful_pdf_count": successful},
-            ):
-                analysis = analyze_corpus(
-                    candidates,
-                    download_results,
-                    workspace,
-                    profile=profile,
-                )
-        finally:
-            monitor.stop()
+        with timeline.phase(
+            "analysis",
+            details={"successful_pdf_count": successful},
+        ):
+            stage_result = _run_monitored_analysis(workspace)
+            if stage_result:
+                return stage_result
+            stats_path = workspace / "analysis" / "corpus-stats.json"
+            analysis = read_json(stats_path) if stats_path.is_file() else {"stages": "complete"}
     retrieval_state = load_retrieval_state(workspace)
     retrieval_attempt_count = len(retrieval_state["attempts"])
     summary = {
