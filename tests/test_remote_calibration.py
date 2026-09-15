@@ -54,13 +54,16 @@ class FakeCalibrationClient:
 def ready_response(
     snapshot: str,
     session_id: str = "11111111-1111-1111-1111-111111111111",
+    answers: list[dict[str, str]] | None = None,
+    current_word: str = "word0",
 ) -> dict[str, object]:
+    answer_history = list(answers or [])
     return {
         "status": "calibration_ready",
         "session_id": session_id,
         "vocabulary_snapshot_sha256": snapshot,
         "calibration": {
-            "answered": 0,
+            "answered": len(answer_history),
             "question_limit": 30,
             "complete": False,
             "mutation_revision": 0,
@@ -71,8 +74,12 @@ def ready_response(
                 "maximum_percent": 98,
                 "step_percent": 1,
             },
-            "responses": {"known": 0, "unknown": 0, "unsure": 0},
-            "word": {"lemma": "word0", "part_of_speech": "noun"},
+            "responses": {
+                label: sum(answer["response"] == label for answer in answer_history)
+                for label in ("known", "unknown", "unsure")
+            },
+            "answers": answer_history,
+            "word": {"lemma": current_word, "part_of_speech": "noun"},
         },
     }
 
@@ -248,6 +255,47 @@ class RemoteCalibrationTests(unittest.TestCase):
             self.assertNotIn("personalized_vocabulary_sha256", result)
             self.assertIn("word0\tnoun\t0.250000\tlikely_unknown", export)
             self.assertEqual(session.public_state()["complete"], True)
+
+    def test_saved_session_catches_up_to_answers_already_accepted_by_server(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            license_path = root / "license.rrlicense"
+            license_path.write_text(json.dumps({"format": "test-license"}), encoding="utf-8")
+            words = [word(index) for index in range(30)]
+            snapshot = vocabulary_snapshot_sha256(words)
+            state_path = root / "session.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "remote_session_id": "11111111-1111-1111-1111-111111111111",
+                        "vocabulary_snapshot_sha256": snapshot,
+                        "answers": [{"lemma": "word0", "response": "known"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            remote_answers = [
+                {"lemma": "word0", "response": "known"},
+                {"lemma": "word1", "response": "unsure"},
+            ]
+            client = FakeCalibrationClient(
+                [ready_response(snapshot, answers=remote_answers, current_word="word2")]
+            )
+
+            session = RemoteCalibrationSession(
+                words,
+                state_path,
+                "local label",
+                client=client,
+                license_path=license_path,
+            )
+
+            persisted = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(client.calls[0][0], "state")
+            self.assertEqual(session.answers, remote_answers)
+            self.assertEqual(persisted["answers"], remote_answers)
+            self.assertEqual(session.public_state()["word"]["lemma"], "word2")
 
     def test_remote_failure_is_not_reported_as_an_invalid_license(self) -> None:
         error = CalibrationServiceError(

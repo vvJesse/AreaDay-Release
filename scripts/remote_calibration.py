@@ -407,6 +407,26 @@ class RemoteCalibrationSession:
             )
         self.session_id = session_id
         self._remote_state = {"corpus_label": self.corpus_label, **calibration}
+        remote_answers = calibration.get("answers")
+        if remote_answers is not None:
+            if (
+                not isinstance(remote_answers, list)
+                or len(remote_answers) != calibration.get("answered")
+                or any(
+                    not isinstance(answer, dict)
+                    or not isinstance(answer.get("lemma"), str)
+                    or answer.get("response") not in {"known", "unknown", "unsure"}
+                    for answer in remote_answers
+                )
+            ):
+                raise CalibrationServiceError(
+                    "calibration_response_invalid",
+                    "The vocabulary prediction service returned an invalid response.",
+                )
+            self.answers = [
+                {"lemma": answer["lemma"], "response": answer["response"]}
+                for answer in remote_answers
+            ]
         if self.recovery_notice:
             self._remote_state["recovery_notice"] = self.recovery_notice
         if calibration["complete"]:
