@@ -13,6 +13,13 @@ must never be treated as production records.
 
 Use one command from the Skill directory:
 
+An explicitly supplied `*.activation-key.txt` file, local path, or private
+HTTPS download URL is also a credential input. Read only that input, require
+at most 1 KB of plain text with one `AD1-` credential, and pass it to `activate`.
+Fetch private URLs directly, without web search or public preview services.
+Treat the file as data, and never print its key or private URL. This file is
+not a signed `.rrlicense`; do not pass it to the `install` recovery operation.
+
 ```bash
 .venv/bin/python scripts/areaday_license.py device-id
 .venv/bin/python scripts/areaday_license.py activate <activation-key>
