@@ -15,6 +15,34 @@ SKILL_DIR = Path(__file__).resolve().parents[1]
 MODEL_MANIFEST = SKILL_DIR / "references" / "embedding-model-manifest.json"
 DEFAULT_MODEL_ROOT = Path.home() / ".areaday" / "models" / "sentence-transformers"
 MODEL_DIRECTORY_GLOB = "sentence-transformers--all-MiniLM-L6-v2--*"
+DEFAULT_BATCH_SIZE = 32
+MAX_BATCH_SIZE = 32
+
+
+def configured_batch_size() -> int:
+    """Return the validated embedding batch size from the environment."""
+
+    raw = os.environ.get("AREADAY_ONNX_BATCH_SIZE")
+    if raw is None:
+        return DEFAULT_BATCH_SIZE
+    if not raw or not raw.isascii() or not raw.isdecimal():
+        raise ValueError(
+            "AREADAY_ONNX_BATCH_SIZE must be a decimal integer from 1 through 32"
+        )
+    value = int(raw)
+    if not 1 <= value <= MAX_BATCH_SIZE:
+        raise ValueError(
+            "AREADAY_ONNX_BATCH_SIZE must be a decimal integer from 1 through 32"
+        )
+    return value
+
+
+def _validate_batch_size(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("batch_size must be an integer from 1 through 32")
+    if not 1 <= value <= MAX_BATCH_SIZE:
+        raise ValueError("batch_size must be an integer from 1 through 32")
+    return value
 
 
 def resolve_model_path(model_root: Path | None = None) -> Path:
@@ -97,8 +125,13 @@ class OnnxSentenceEncoder:
             pad_type_id=0,
             pad_token="[PAD]",
         )
+        session_options = ort.SessionOptions()
+        session_options.intra_op_num_threads = 1
+        session_options.inter_op_num_threads = 1
+        session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
         self._session = ort.InferenceSession(
             str(model_file),
+            sess_options=session_options,
             providers=["CPUExecutionProvider"],
         )
         self._input_names = {
@@ -110,9 +143,10 @@ class OnnxSentenceEncoder:
                 "Unexpected ONNX model inputs: " + ", ".join(sorted(self._input_names))
             )
 
-    def encode(self, texts: list[str], *, batch_size: int = 32) -> np.ndarray:
-        if batch_size < 1:
-            raise ValueError("batch_size must be positive")
+    def encode(self, texts: list[str], *, batch_size: int | None = None) -> np.ndarray:
+        if batch_size is None:
+            batch_size = configured_batch_size()
+        batch_size = _validate_batch_size(batch_size)
         if not texts:
             return np.empty((0, self.dimension), dtype=np.float32)
 

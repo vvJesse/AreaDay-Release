@@ -7,7 +7,19 @@ from typing import Any, Callable
 
 import numpy as np
 
-from onnx_embeddings import embed_texts
+
+def embed_texts(texts: list[str]) -> np.ndarray:
+    """Load the ONNX backend only when embedding is actually requested.
+
+    Keeping this compatibility wrapper lets the legacy in-process pipeline
+    retain its public import while ensuring importing the controller does not
+    import the ONNX runtime.  The dedicated ``select`` stage is the only
+    production caller in the bounded pipeline.
+    """
+
+    from onnx_embeddings import embed_texts as _embed_texts
+
+    return _embed_texts(texts)
 
 
 def normalize_title(title: str | None) -> str:
