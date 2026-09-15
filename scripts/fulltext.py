@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 MAX_DIRECT_PDF_BYTES = 100 * 1024 * 1024
+MAX_DOWNLOAD_CHUNK_BYTES = 256 * 1024
 
 
 def valid_pdf(path: Path) -> bool:
@@ -64,7 +65,7 @@ def download_licensed_open_access_pdf(
                 raise RuntimeError("PDF exceeds the 100 MB safety limit")
             written = 0
             with staging.open("wb") as handle:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                for chunk in response.iter_content(chunk_size=MAX_DOWNLOAD_CHUNK_BYTES):
                     if not chunk:
                         continue
                     written += len(chunk)
@@ -122,7 +123,7 @@ def download_openalex_content_pdf(
                 raise RuntimeError("PDF exceeds the 100 MB safety limit")
             written = 0
             with staging.open("wb") as handle:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                for chunk in response.iter_content(chunk_size=MAX_DOWNLOAD_CHUNK_BYTES):
                     if not chunk:
                         continue
                     written += len(chunk)

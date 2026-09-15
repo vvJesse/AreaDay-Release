@@ -27,6 +27,7 @@ from concurrent_downloads import (
 from provider_discovery import collect_provider_lanes
 from run_timing import RunTimeline
 from corpus_analysis import analyze_corpus
+from process_metrics import SystemMemoryMonitor
 from domain_registry import DomainRegistry, default_registry_path
 from research_profile import validate_profile
 from areaday_core import (
@@ -1274,16 +1275,20 @@ def main() -> int:
     has_usable_pdfs = successful > 0
     analysis: dict[str, Any] | None = None
     if args.analyze and has_usable_pdfs:
-        with timeline.phase(
-            "analysis",
-            details={"successful_pdf_count": successful},
-        ):
-            analysis = analyze_corpus(
-                candidates,
-                download_results,
-                workspace,
-                profile=profile,
-            )
+        monitor = SystemMemoryMonitor(workspace).start()
+        try:
+            with timeline.phase(
+                "analysis",
+                details={"successful_pdf_count": successful},
+            ):
+                analysis = analyze_corpus(
+                    candidates,
+                    download_results,
+                    workspace,
+                    profile=profile,
+                )
+        finally:
+            monitor.stop()
     retrieval_state = load_retrieval_state(workspace)
     retrieval_attempt_count = len(retrieval_state["attempts"])
     summary = {

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import re
 import shutil
 import time
@@ -16,6 +17,7 @@ from corpus_selection import embed_texts, select_analysis_documents
 from lexical_assets import build_lexical_assets, select_shared_terminology_candidates
 from orthography_review import build_orthography_review_candidates
 from areaday_core import utc_now, write_json, write_jsonl
+from process_metrics import append_sample
 
 
 def _copy_output(source: Path, destination: Path) -> None:
@@ -24,6 +26,20 @@ def _copy_output(source: Path, destination: Path) -> None:
     temporary = destination.with_suffix(destination.suffix + ".tmp")
     shutil.copyfile(source, temporary)
     temporary.replace(destination)
+
+
+def _atomic_text(path: Path, text: str) -> None:
+    """Publish extracted text only after the complete file is durable."""
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def _write_vocabulary_tsv(path: Path, vocabulary: list[dict[str, Any]]) -> None:
@@ -180,7 +196,7 @@ def analyze_corpus(
             clean_text, cleaning = clean_academic_text(raw_text)
             safe_work_id = re.sub(r"[^A-Za-z0-9._-]+", "_", work_id)
             text_path = text_dir / f"{safe_work_id}.txt"
-            text_path.write_text(clean_text, encoding="utf-8")
+            _atomic_text(text_path, clean_text)
             record.update(
                 status="extracted",
                 text=str(text_path),
@@ -192,6 +208,7 @@ def analyze_corpus(
             )
         except Exception as error:
             record.update(status="failed", error=f"{type(error).__name__}: {error}")
+        append_sample(workspace, "extract")
         paper_records.append(record)
     phase_elapsed_seconds["pdf_extraction_and_cleaning"] = round(
         monotonic() - phase_started,
@@ -295,6 +312,9 @@ def analyze_corpus(
         {key: value for key, value in record.items() if key != "clean_text"}
         for record in paper_records
     ]
+    records_tmp = analysis_dir / f"paper-work-records.jsonl.{os.getpid()}.tmp"
+    write_jsonl(records_tmp, public_paper_records)
+    os.replace(records_tmp, analysis_dir / "paper-work-records.jsonl")
     paper_decisions_path = analysis_dir / "paper-decisions.jsonl"
     write_jsonl(paper_decisions_path, public_paper_records)
     _copy_output(paper_decisions_path, analysis_dir / "papers.jsonl")
