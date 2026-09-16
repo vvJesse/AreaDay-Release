@@ -1,22 +1,25 @@
 # Vocabulary calibration model
 
-This licensed step follows local mini-corpus analysis. The local Skill reads the
-Vocabulary Map and sends only eight fields per word to the AreaDay prediction
-service: lemma, part of speech, total count, document count, document share,
-Zipf frequency, CEFR level, and applicable exam tags. Never send PDFs, extracted
-text, sentences, source-paper identifiers, URLs, document paths, or per-document
-counts. The service verifies the activated device license before returning the
-first question or processing any answer.
+This step follows local mini-corpus analysis and runs entirely inside the Skill.
+The local engine reads the Vocabulary Map and assembles only eight fields per
+word: lemma, part of speech, total count, document count, document share, Zipf
+frequency, CEFR level, and applicable exam tags. Those eight fields are the
+whole input to the model and they never cross a process or network boundary.
+Never assemble PDFs, extracted text, sentences, source-paper identifiers, URLs,
+document paths, or per-document counts for this step. There is no prediction
+service to contact, no license to verify, and no fallback to configure: the
+model runs in `scripts/vocabulary_calibration.py` on the same computer.
 
 Responses are stored in
 `<confirmed-corpus-directory>/analysis/vocabulary-calibration-session.json`.
-After answer 30, the local workbench automatically writes
+After answer 30, the local session automatically writes
 `analysis/vocabulary-calibration-result.json` and
 `analysis/personalized-vocabulary.tsv`; the page also offers the TSV download.
-Once these three local files are complete and internally consistent, reopening
-the result does not contact the prediction service. An incomplete calibration
-requires the service; report `calibration_service_unavailable` separately from
-license errors.
+Once these three local files are complete and loadable, reopening the result is
+served from them. An unfinished calibration resumes from the saved state; if the
+saved state or the completed result cannot be loaded, or if the underlying
+corpus changed the eight fields, the session clears itself and asks the user to
+answer the 30 questions again.
 
 The model starts with the original `wordfreq` population prior and adds weak
 education evidence for the default Chinese B2/CET-6 learner profile:
@@ -51,12 +54,15 @@ these rows as `important_boundary`.
 Direct answers always override model output for that exact word: `known` is
 exported as `1.0`, `unknown` as `0.0`, and `unsure` remains model-derived.
 
-Use both `--disable-cefr-prior --disable-exam-prior` to reproduce the original
-word-frequency-only baseline. `--exam-profile` accepts `none`, `gaokao`,
-`cet4`, or `cet6`. The prediction implementation lives only in the private
-server-side development project; do not add a local fallback or duplicate the
-algorithm in the distributed Skill. This is a lightweight personalization
-model, not a validated language-assessment instrument.
+`scripts/vocabulary_calibration.py` is the single implementation of this model
+in the distributed Skill and must stay behaviour-identical to the reference
+implementation in the private development project: same priors, same question
+selection, and the same result classification. Parity is checked with a
+field-level comparison on a synthetic corpus (prior probabilities, question
+order, and classification counts) rather than by re-deriving the model. Do not
+reintroduce a network path, a second copy of the algorithm, or a divergent
+simplification. This is a lightweight personalization model, not a validated
+language-assessment instrument.
 
 An unlisted word is deliberately not penalized: the first comparison showed
 that a negative adjustment disproportionately pushed valid domain terms such

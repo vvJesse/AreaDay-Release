@@ -12,21 +12,14 @@ author: AreaDay
 
 # AreaDay
 
-## Production license gate
+## Local-only operation
 
-AreaDay uses a production license. A valid
-installed license is required before initialization, workbench launch, brief
-generation, or schedule configuration can perform business work. These public
-entrypoints all enforce the same offline verifier before reading or changing a
-research workspace.
-
-Treat requests to show the AreaDay device code, activate AreaDay,
-install an explicitly supplied recovery `.rrlicense` file, or inspect the
-installed license as license operations. Read
-[license-activation.md](references/license-activation.md), then run exactly the
-matching command from that reference. The ordinary activation flow accepts an
-activation key and automatically installs the returned license; the user never
-manually copies a license into an application-data directory.
+AreaDay runs entirely on the user's computer. There is no license, no
+activation step, no device code, and no AreaDay server: every entrypoint works
+offline from the start. Never ask for or mention a license, activation key, or
+credential, and never describe AreaDay as licensed, activated, or bound to a
+device limit. If the user asks about licensing, answer that this Skill needs
+none.
 
 For installation or upgrade requests, read
 [INSTALL.md](INSTALL.md) completely, then perform its agent installation
@@ -37,33 +30,6 @@ desktop App or ask the user to perform terminal installation steps for you.
 Commands in this file use `.venv/bin/python` for macOS. On Windows, always use
 `.\.venv\Scripts\python.exe` in its place and keep every following argument
 unchanged. Never try to execute the macOS `.venv/bin/python` path on Windows.
-
-When a business entrypoint returns `license_required`, report its exact `code`
-and `error`, then offer the matching device-code, activation, status, or recovery
-installation operation. Do not retry the business operation through a helper
-script or another entrypoint. Ordinary gate checking is offline. Creating a new
-personalized vocabulary uses the licensed AreaDay prediction service after the
-mini corpus is complete; an unreachable predictor must not be reported as an
-invalid license.
-
-At the start of every concrete business request—including establishing,
-building, or rebuilding a domain—run the local offline check exactly once,
-before asking product-specific follow-up questions or reading a workspace:
-
-```bash
-.venv/bin/python scripts/areaday_license.py status
-```
-
-On `license_valid`, continue. On `license_error`, explain it and offer the
-matching activation operation before doing other product work. This preliminary
-license check must not contact the remote prediction service or test whether it
-is currently reachable. During first-time setup, that service is contacted only
-after the local corpus, vocabulary, and terminology are ready and the user is
-about to begin the 30-question calibration.
-
-Do not repeat the conversational precheck during one uninterrupted operation;
-the public scripts still enforce the local license again at their actual
-side-effect boundary.
 
 AreaDay has four user-facing capability groups:
 
@@ -241,8 +207,8 @@ correct; it is valid only after the vocabulary-card semantic review contract
 and the asset loaders both succeed. It may start calibration only after that
 invocation succeeds.
 The preparation operation may hand control to the user only when the controller
-returns `terminal: true`, `checkpoint: calibration_service_ready`, and a live
-URL whose service record says both `vocabulary_ready` and
+returns `terminal: true`, `checkpoint: calibration_ready`, and a live URL whose
+record says both `vocabulary_ready` and
 `terminology_ready`. Open that exact URL and ask the user to answer the 30
 calibration questions. Do not claim that full initialization is complete until
 those answers and the personalized export have been verified.
@@ -308,8 +274,8 @@ the task with the same `automation_key`; it must not create duplicates. Do not
 read the continuous workflow for ordinary viewing or review.
 
 PDFs, extracted text, source metadata, corpora, briefs, settings, and learning
-records remain in the user-confirmed local AreaDay directories. During a
-new 30-question vocabulary calibration, the licensed predictor receives only
-the compact word statistics and isolated-word answers defined in
-`references/vocabulary-calibration.md`. The final result is saved locally and
-can be viewed later without contacting the predictor.
+records remain in the user-confirmed local AreaDay directories. The 30-question
+vocabulary calibration runs entirely inside the Skill: only the compact word
+statistics defined in `references/vocabulary-calibration.md` are assembled, they
+are used in this same process, and nothing is sent anywhere. The final result is
+saved locally and can be viewed later.

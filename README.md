@@ -3,7 +3,7 @@
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 AreaDay is distributed as a self-contained Skill for Codex and WorkBuddy.
-This is a paid Skill, please ensure you have got a license of activation code from the author before you install it. 
+It runs completely offline and needs no license, activation code, or account.
 
 #### Note for WorkBuddy Users
 
@@ -24,7 +24,7 @@ proceed when you trust the Skill and task, avoid running WorkBuddy as
 administrator, and **re-enable the sandbox when finished**.
 
 If you are uncomfortable disabling the sandbox temporarily, please consider
-this limitation **before purchasing a license**. We cannot currently guarantee
+this limitation **before purchasing**. We cannot currently guarantee
 the complete workflow while the sandbox remains enabled.
 
 ## Install
@@ -32,12 +32,12 @@ the complete workflow while the sandbox remains enabled.
 First download the complete delivery ZIP for the current computer from the
 [latest release](https://github.com/vvJesse/AreaDay-Release/releases/latest).
 In a new Codex or WorkBuddy task, send the release repository URL, the request
-`帮我安装这个 Skill。`, and the ZIP's full local path. Drag the license file
-received with the purchase into the same message, then send it.
+`帮我安装这个 Skill。`, and the ZIP's full local path, then send it. No activation
+key or credential file is needed.
 
 See the Chinese [AreaDay installation and usage guide](docs/customer-guide/AreaDay-安装和使用指南.md)
 for direct download links and the complete first-use flow. The agent must read
-[INSTALL.md](INSTALL.md) and complete installation, activation, and verification.
+[INSTALL.md](INSTALL.md) and complete installation and verification.
 The user does not need to extract the ZIP, move folders, run terminal commands,
 or install dependencies.
 
@@ -62,18 +62,16 @@ replace its established meaning.
 
 - Papers, PDFs, extracted text, notes, profiles, and vocabulary data are stored
   on the user's computer. AreaDay does not upload the original paper text or
-  local file paths to its servers. Text tokenization and embedding inference
-  also run locally, with ONNX Runtime telemetry explicitly disabled.
+  local file paths anywhere. Text tokenization, embedding inference, and the
+  30-question vocabulary calibration all run locally inside the Skill, with
+  ONNX Runtime telemetry explicitly disabled.
 - To find papers, AreaDay sends search requests and related metadata to the
   enabled providers (OpenAlex and, when selected, arXiv). Those providers'
   terms and privacy policies apply to those requests.
-- The licensed vocabulary service receives only the isolated-word test results
-  and statistical features needed to build the personal vocabulary model. It
-  does not receive papers, PDFs, extracted text, source URLs, or local paths.
-- License activation sends the activation key, device identifier, platform, and
-  version to the AreaDay activation service so it can verify the license and
-  device limit. The installed license is stored locally after activation.
-- OpenAlex API keys, activation keys, and local license files are credentials.
+- AreaDay has no server of its own. It does not need a license, an activation
+  key, a device identifier, or an account, and it does not enforce a device
+  limit.
+- OpenAlex API keys are credentials.
   Keep them private and do not commit or paste them into public issues,
   prompts, or repositories. AreaDay does not need access to your other files.
 - AreaDay is a research and vocabulary aid. Review generated results before

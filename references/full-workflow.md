@@ -12,15 +12,10 @@ Use this reference only when establishing or rebuilding a research domain. An
 ordinary request to open vocabulary, briefs, review, or domain switching uses
 the fast path in `SKILL.md`.
 
-Before asking the domain questions below, run the local offline license status
-check required by `SKILL.md`. A missing or invalid license stops before paper
-collection. Do not probe the remote prediction service at this point: its
-availability does not decide whether profile confirmation, paper collection,
-or local corpus analysis may begin. The service is first needed after the local
-vocabulary and terminology are ready, when the workbench starts the 30-question
-calibration. If it is unavailable then, preserve the completed local preparation
-and resume the same initialization operation later; do not repeat corpus work or
-report the outage as an invalid license.
+This reference needs no license check, no activation step, and no network
+probe. There is no prediction service: profile confirmation, paper collection,
+local corpus analysis, and the 30-question calibration all run locally in one
+uninterrupted preparation operation.
 
 ## The lifecycle contract
 
@@ -53,7 +48,7 @@ stop. The user may leave the task while the host agent continues.
   run the provided `resume` command. If a command is live, wait on that exact
   command. If status is `failed`, diagnose the preserved error and resume the
   same operation.
-- `terminal: true` with `checkpoint: calibration_service_ready`: the automated
+- `terminal: true` with `checkpoint: calibration_ready`: the automated
   preparation is finished and the next actor is the user. This is valid only
   after the live service proves it has the selected registered domain, a usable
   vocabulary question, and the exact finalized terminology count.
@@ -62,10 +57,10 @@ Do not call the whole initialization complete at that handoff. Full
 initialization completes only after the user submits 30 answers and the result
 and personalized TSV are verified.
 
-The mini corpus is built locally. When calibration starts, the Skill sends only
-the compact word statistics listed in `vocabulary-calibration.md` plus the
-user's isolated-word answers to the licensed predictor. PDFs, extracted text,
-sentences, paper sources, and local paths never leave the confirmed workspace.
+The mini corpus is built locally. When calibration starts, the Skill assembles
+only the compact word statistics listed in `vocabulary-calibration.md` and uses
+them in the same process. PDFs, extracted text, sentences, paper sources, and
+local paths never leave the confirmed workspace.
 
 ## Prepare the local runtime
 
@@ -271,7 +266,7 @@ it can return:
 {
   "status": "awaiting_user_calibration",
   "terminal": true,
-  "checkpoint": "calibration_service_ready"
+  "checkpoint": "calibration_ready"
 }
 ```
 
@@ -294,9 +289,10 @@ same compatible live service when present. Weekly scheduling follows
 ## Invariants
 
 - All documents and content stay in the user-confirmed workspace, and the Skill
-  instance uses only its own explicit registry. The sole product-service data
-  exception is the minimal word statistics and isolated-word answers required
-  by the licensed predictor. Never scan the filesystem, infer another
+  instance uses only its own explicit registry. Nothing is sent to a server:
+  vocabulary calibration assembles only the compact word statistics described
+  in `vocabulary-calibration.md` and consumes them locally. Never scan the
+  filesystem, infer another
   workspace, or copy domain data from another Skill installation.
 - Vocabulary and terminology are both derived from retained full text. Titles
   and abstracts are for paper-level relevance only.

@@ -39,10 +39,10 @@ from domain_registry import (  # noqa: E402
     validate_completed_workspace,
     validate_corpus_launch_workspace,
 )
-from remote_calibration import (  # noqa: E402
-    CalibrationServiceError,
+from vocabulary_calibration import (  # noqa: E402
+    CalibrationError,
     InvalidCalibrationData,
-    RemoteCalibrationSession,
+    LocalCalibrationSession,
 )
 from workbench_protocol import (  # noqa: E402
     DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
@@ -706,13 +706,11 @@ class AppHandler(BaseHTTPRequestHandler):
                 domain_id=context.domain_id,
                 status=HTTPStatus.NOT_FOUND,
             )
-        except CalibrationServiceError as error:
+        except CalibrationError as error:
             status = (
-                HTTPStatus.SERVICE_UNAVAILABLE
-                if error.code == "calibration_service_unavailable"
-                else HTTPStatus.FORBIDDEN
-                if "license" in error.code
-                else HTTPStatus.BAD_GATEWAY
+                HTTPStatus.BAD_REQUEST
+                if error.code == "calibration_request_invalid"
+                else HTTPStatus.INTERNAL_SERVER_ERROR
             )
             self._send_api_json(
                 {"error": str(error), "code": error.code},
@@ -895,7 +893,7 @@ def _workspace_context(
         domain_id=registration.domain_id,
         display_name=registration.display_name,
         workspace=workspace,
-        session=RemoteCalibrationSession(words, state, registration.display_name),
+        session=LocalCalibrationSession(words, state, registration.display_name),
         continuous_store=continuous_store,
     )
 
@@ -1023,7 +1021,7 @@ def build_runtime(args: argparse.Namespace) -> AppRuntime:
             domain_id="standalone" if standalone else "current-domain",
             display_name=corpus_label,
             workspace=workspace,
-            session=RemoteCalibrationSession(
+            session=LocalCalibrationSession(
                 words,
                 state_path,
                 corpus_label,

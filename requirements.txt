@@ -1,5 +1,4 @@
 arxiv==4.0.1
-cryptography==50.0.1
 fsrs==6.3.2
 numpy==2.5.2
 onnxruntime==1.29.0

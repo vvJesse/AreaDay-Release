@@ -12,7 +12,7 @@ Let the public HTTPS bucket or CDN origin be `<endpoint>`. Upload these objects 
 <endpoint>/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer.json
 ```
 
-The desktop installer uses ordinary HTTPS GET requests. Bucket listing and browser CORS are not required. Public read access is acceptable because both upstream assets are public; the paid product value must not depend on keeping these third-party model files secret.
+The desktop installer uses ordinary HTTPS GET requests. Bucket listing and browser CORS are not required. Public read access is acceptable because both upstream assets are public; the product must not depend on keeping these third-party model files secret.
 
 ## Release configuration
 

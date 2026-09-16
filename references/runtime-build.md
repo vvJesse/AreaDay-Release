@@ -41,8 +41,8 @@ Each GitHub artifact contains:
 
 The standalone Runtime remains inside the customer ZIP and is not uploaded a
 second time. This keeps the downloadable Artifact close to half the former
-size. Give each customer only the AreaDay ZIP matching their computer,
-together with their separately issued `AD1-...` activation key.
+size. Give each customer only the AreaDay ZIP matching their computer.
+No activation key or credential file is issued with it.
 
 To publish without downloading these large files locally, run **Publish
 verified AreaDay release** from `main`, enter the successful Runtime workflow
@@ -52,8 +52,7 @@ to the Release.
 ## When to rebuild
 
 Run the workflow when AreaDay code changes for a release, when a dependency or
-model changes, or when the Python/runtime build logic changes. A new runtime is
-not needed for every customer or every activation key.
+model changes, or when the Python/runtime build logic changes.
 
 The runtime dependency source is `pyproject.toml`; `uv.lock` freezes the
 complete resolved dependency graph and the hashes of every platform artifact.

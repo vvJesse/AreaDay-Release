@@ -357,7 +357,7 @@ def build() -> None:
         bottomMargin=27 * mm,
         title="AreaDay 安装和使用指南",
         author="AreaDay",
-        subject=f"AreaDay {DOCUMENT_VERSION} 安装、激活与基本使用",
+        subject=f"AreaDay {DOCUMENT_VERSION} 安装与基本使用",
         creator="AreaDay",
     )
     doc.build(story, onFirstPage=draw_page, onLaterPages=draw_page)

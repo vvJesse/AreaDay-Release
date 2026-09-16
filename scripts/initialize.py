@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive AreaDay from a confirmed profile to a verified calibration service.
+"""Drive AreaDay from a confirmed profile to a verified local calibration.
 
 This is the sole lifecycle owner for the unattended part of first-time setup.
 Discovery, review preparation, download, analysis, and finalization are internal
@@ -55,7 +55,6 @@ from open_workbench import (
 )
 from orthography_contract import orthography_summary_is_complete
 from research_profile import validate_profile
-from areaday_license import enforce_business_license
 from areaday_core import read_json, utc_now, write_json
 from terminology_assets import load_finalized_terminology
 
@@ -787,7 +786,7 @@ class InitializationController:
             return self._status(
                 "awaiting_user_calibration",
                 terminal=True,
-                checkpoint="calibration_service_ready",
+                checkpoint="calibration_ready",
                 next_action={
                     "actor": "user",
                     "type": "answer_vocabulary_calibration",
@@ -839,7 +838,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    enforce_business_license("initialization")
     controller = InitializationController(args)
     try:
         if args.command == "status":

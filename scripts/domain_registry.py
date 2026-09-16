@@ -21,7 +21,7 @@ from terminology_assets import load_finalized_terminology
 from vocabulary_cards import load_catalog
 from orthography_contract import orthography_summary_is_complete
 from migrate_areaday_data import areaday_data_root
-from remote_calibration import (
+from vocabulary_calibration import (
     InvalidCalibrationData,
     load_completed_calibration,
 )

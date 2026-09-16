@@ -32,7 +32,7 @@ class CustomerGuideTests(unittest.TestCase):
             "https://github.com/vvJesse/AreaDay-Release",
             "帮我安装这个 Skill。",
             "安装包路径：",
-            "许可证文件直接拖入输入框",
+            "Installation verified",
             "credentials.ini",
             "api_key =",
             "https://guide.areaday.app/",

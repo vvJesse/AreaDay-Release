@@ -15,7 +15,6 @@ from generate_brief import (
     DomainSelectionRequired,
     resolve_workspace,
 )
-from areaday_license import enforce_business_license
 
 
 def valid_time(value: str) -> str:
@@ -44,7 +43,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    enforce_business_license("scheduling")
     try:
         workspace, domain_id = resolve_workspace(
             args.registry.expanduser().resolve(), args.domain, args.workspace
