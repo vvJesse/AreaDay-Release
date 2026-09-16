@@ -27,8 +27,7 @@ from domain_registry import (
     validate_completed_workspace,
     validate_corpus_launch_workspace,
 )
-from remote_calibration import InvalidCalibrationData
-from areaday_license import enforce_business_license
+from vocabulary_calibration import InvalidCalibrationData
 from workbench_protocol import (
     DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
     WORKBENCH_IDENTITY_PATH,
@@ -865,7 +864,6 @@ def ensure_workbench(
 
 def main() -> None:
     args = parse_args()
-    enforce_business_license("workbench")
     registry_path = (
         args.registry.expanduser().resolve()
         if args.registry is not None

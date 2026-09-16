@@ -14,7 +14,7 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from remote_calibration import RemoteCalibrationSession  # noqa: E402
+from vocabulary_calibration import LocalCalibrationSession  # noqa: E402
 
 
 def word(index: int) -> SimpleNamespace:
@@ -38,8 +38,8 @@ def write_completed_result(root: Path, total: int = 30) -> tuple[Path, bytes, by
     state_path.write_text(
         json.dumps(
             {
-                "schema_version": 2,
-                "remote_session_id": "11111111-1111-1111-1111-111111111111",
+                "schema_version": 1,
+                "vocabulary_snapshot_sha256": "fixture-snapshot-from-another-corpus",
                 "answers": answers,
             }
         ),
@@ -75,42 +75,16 @@ def write_completed_result(root: Path, total: int = 30) -> tuple[Path, bytes, by
     return state_path, result_path.read_bytes(), export_path.read_bytes()
 
 
-class NoNetworkClient:
-    def request(self, _action: str, _payload: dict) -> dict:
-        raise AssertionError("a completed local result must not contact the server")
-
-
-class ReadyClient:
-    def request(self, action: str, payload: dict) -> dict:
-        if action != "start":
-            raise AssertionError(f"unexpected action: {action}")
-        return {
-            "session_id": "22222222-2222-2222-2222-222222222222",
-            "vocabulary_snapshot_sha256": payload["vocabulary_snapshot_sha256"],
-            "calibration": {
-                "answered": 0,
-                "question_limit": 30,
-                "complete": False,
-                "mutation_revision": 0,
-                "threshold": {},
-                "responses": {"known": 0, "unknown": 0, "unsure": 0},
-                "word": {"lemma": "word0", "part_of_speech": "noun"},
-            },
-        }
-
-
 class VocabularyResultPersistenceTests(unittest.TestCase):
     def test_completed_result_is_frozen_and_remains_viewable_offline(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             state_path, result_before, export_before = write_completed_result(root)
 
-            session = RemoteCalibrationSession(
+            session = LocalCalibrationSession(
                 [word(index) for index in range(700)],
                 state_path,
                 "changed local corpus",
-                client=NoNetworkClient(),
-                license_path=root / "missing-license.rrlicense",
             )
 
             self.assertTrue(session.public_state()["complete"])
@@ -130,33 +104,41 @@ class VocabularyResultPersistenceTests(unittest.TestCase):
             result["counts"]["total"] = 29
             result_path.write_text(json.dumps(result), encoding="utf-8")
 
-            session = RemoteCalibrationSession(
+            session = LocalCalibrationSession(
                 [word(index) for index in range(30)],
                 state_path,
                 "line ending changed",
-                client=NoNetworkClient(),
-                license_path=root / "missing-license.rrlicense",
             )
 
             self.assertTrue(session.public_state()["complete"])
             self.assertEqual(session.public_state()["result"]["counts"]["total"], 29)
+
+    def test_strict_snapshot_check_restarts_when_the_corpus_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state_path, _, _ = write_completed_result(root)
+
+            session = LocalCalibrationSession(
+                [word(index) for index in range(30)],
+                state_path,
+                "strict workspace",
+                enforce_snapshot_match=True,
+            )
+
+            self.assertFalse(session.public_state()["complete"])
+            self.assertEqual(session.public_state()["answered"], 0)
+            self.assertIn("请重新回答 30 道题", session.public_state()["recovery_notice"])
 
     def test_unloadable_completed_result_is_cleared_and_restarted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             state_path, _, _ = write_completed_result(root)
             (root / "personalized-vocabulary.tsv").unlink()
-            license_path = root / "license.rrlicense"
-            license_path.write_text(
-                json.dumps({"format": "test-license"}), encoding="utf-8"
-            )
 
-            session = RemoteCalibrationSession(
+            session = LocalCalibrationSession(
                 [word(index) for index in range(30)],
                 state_path,
                 "damaged completed result",
-                client=ReadyClient(),
-                license_path=license_path,
             )
 
             self.assertFalse((root / "vocabulary-calibration-result.json").exists())

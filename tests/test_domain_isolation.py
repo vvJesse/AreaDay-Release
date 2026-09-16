@@ -50,11 +50,6 @@ def make_word(index: int) -> object:
     )
 
 
-class NoNetworkClient:
-    def request(self, _action: str, _payload: dict) -> dict:
-        raise AssertionError("completed domain fixtures must remain offline")
-
-
 def create_completed_workspace(root: Path, domain_id: str, label: str) -> tuple:
     workspace = root / domain_id
     analysis = workspace / "analysis"
@@ -192,13 +187,7 @@ def create_completed_workspace(root: Path, domain_id: str, label: str) -> tuple:
         json.dumps(result),
         encoding="utf-8",
     )
-    session = APP.RemoteCalibrationSession(
-        words,
-        state,
-        label,
-        client=NoNetworkClient(),
-        license_path=analysis / "missing-license.rrlicense",
-    )
+    session = APP.LocalCalibrationSession(words, state, label)
     store = ContinuousStore(workspace, domain_id=domain_id, display_name=label)
     brief = json.loads(FIXTURE.read_text(encoding="utf-8"))
     brief["headline"] = f"TEST FIXTURE — {label} brief"

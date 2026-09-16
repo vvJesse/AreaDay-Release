@@ -282,7 +282,7 @@ class TerminologyInitializationTests(unittest.TestCase):
             args.ready_calibration_domain = "test-domain"
 
             with patch.object(
-                APP, "RemoteCalibrationSession", return_value=ReadyCalibrationSession()
+                APP, "LocalCalibrationSession", return_value=ReadyCalibrationSession()
             ):
                 runtime = APP.build_runtime(args)
             state = runtime.app_state("test-domain")
@@ -360,7 +360,7 @@ class TerminologyInitializationTests(unittest.TestCase):
             validate_initialized_workspace(workspace)
 
             with patch.object(
-                APP, "RemoteCalibrationSession", return_value=ReadyCalibrationSession()
+                APP, "LocalCalibrationSession", return_value=ReadyCalibrationSession()
             ):
                 runtime = APP.build_runtime(corpus_args(workspace))
             store = runtime.context("current-domain").continuous_store
@@ -455,7 +455,7 @@ class TerminologyInitializationTests(unittest.TestCase):
             )
 
             with patch.object(
-                APP, "RemoteCalibrationSession", return_value=ReadyCalibrationSession()
+                APP, "LocalCalibrationSession", return_value=ReadyCalibrationSession()
             ):
                 runtime = APP.build_runtime(corpus_args(workspace))
             store = runtime.context("current-domain").continuous_store
@@ -581,7 +581,7 @@ class TerminologyInitializationTests(unittest.TestCase):
                 patch.object(APP, "validate_completed_workspace"),
                 patch.object(APP, "load_words", return_value=[]),
                 patch.object(APP, "ContinuousStore", return_value=store),
-                patch.object(APP, "RemoteCalibrationSession", return_value=Mock()),
+                patch.object(APP, "LocalCalibrationSession", return_value=Mock()),
             ):
                 context = APP._workspace_context(
                     registration,

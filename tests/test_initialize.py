@@ -505,7 +505,7 @@ class InitializationControllerTests(unittest.TestCase):
 
             self.assertTrue(payload["terminal"])
             self.assertEqual(payload["status"], "awaiting_user_calibration")
-            self.assertEqual(payload["checkpoint"], "calibration_service_ready")
+            self.assertEqual(payload["checkpoint"], "calibration_ready")
             self.assertEqual(payload["next_action"]["actor"], "user")
             self.assertTrue(payload["service"]["vocabulary_ready"])
             self.assertTrue(payload["service"]["terminology_ready"])

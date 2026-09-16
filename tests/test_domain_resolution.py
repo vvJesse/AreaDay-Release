@@ -109,7 +109,6 @@ class DomainResolutionTests(unittest.TestCase):
                 "argv",
                 ["generate_brief.py", "run", "--registry", str(self.registry)],
             ),
-            patch.object(generate_brief, "enforce_business_license"),
             contextlib.redirect_stdout(generated_output),
         ):
             self.assertEqual(generate_brief.main(), 1)
@@ -134,7 +133,6 @@ class DomainResolutionTests(unittest.TestCase):
                     "08:15",
                 ],
             ),
-            patch.object(configure_schedule, "enforce_business_license"),
             contextlib.redirect_stdout(schedule_output),
         ):
             self.assertEqual(configure_schedule.main(), 1)
@@ -171,7 +169,6 @@ class DomainResolutionTests(unittest.TestCase):
                     "08:15",
                 ],
             ),
-            patch.object(configure_schedule, "enforce_business_license"),
             patch("configure_schedule.validate_completed_workspace"),
             contextlib.redirect_stdout(output),
         ):

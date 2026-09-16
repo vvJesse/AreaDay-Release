@@ -1,11 +1,10 @@
 ---
-description: "Install or upgrade the AreaDay Skill on macOS or Windows x64, then activate it with the customer's activation key."
+description: "Install or upgrade the AreaDay Skill on macOS or Windows x64. No activation step is involved."
 ---
 
 # Install AreaDay
 
-The customer receives two separate items: one platform-specific AreaDay ZIP
-and one activation-key string beginning with `AD1-`. GitHub's automatically
+The customer receives one platform-specific AreaDay ZIP. GitHub's automatically
 generated Source code archives are not installation files. Choose exactly one
 AreaDay delivery ZIP:
 
@@ -26,8 +25,8 @@ files, extract a ZIP, move a folder, or run a terminal command.
 The ZIP already contains Python, all Python packages, the spaCy model, and the
 embedding model for that operating system. The first setup therefore verifies
 and installs the included runtime instead of downloading those dependencies.
-It is a Codex Skill bundle, not a desktop application installer. The customer
-never receives or moves a `.rrlicense` file during ordinary activation.
+It is a Codex Skill bundle, not a desktop application installer.
+The installation needs no license, no activation key, and no account.
 
 ## Manual recovery: Codex on macOS
 
@@ -50,8 +49,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex
 The setup keeps research workspaces outside the Skill bundle. It also copies
 the exact former sibling legacy-data directory on the first
 AreaDay installation when legacy data exists; it never deletes the source.
-Upgrading the Skill therefore does not consume a new device slot or erase an
-existing registry.
+Upgrading the Skill therefore does not erase an existing registry.
 
 The installer retains the former online setup as a compatibility fallback for
 old, platform-neutral bundles. New platform bundles use the included runtime.
@@ -61,7 +59,5 @@ customer may run the platform OpenAlex configuration script later to add a key.
 
 For WorkBuddy manual recovery, place the complete `areaday` folder under the
 user-level `.workbuddy/skills` directory instead. After setup, reopen Codex or
-WorkBuddy if AreaDay is not yet listed, then invoke `$areaday` and supply the
-separately received activation key. AreaDay contacts
-`https://license.areaday.app`, validates the signed response, and installs the
-license automatically in the operating system's application-data directory.
+WorkBuddy if AreaDay is not yet listed, then invoke `$areaday`. AreaDay never
+contacts a licensing server and never asks for an activation key.
