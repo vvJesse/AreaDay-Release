@@ -72,7 +72,12 @@ replace its established meaning.
   key, a device identifier, or an account, and it does not enforce a device
   limit.
 - OpenAlex API keys are credentials.
-  Keep them private and do not commit or paste them into public issues,
-  prompts, or repositories. AreaDay does not need access to your other files.
+  Set one with `python3 scripts/configure_openalex.py`, which verifies the key
+  and saves it to `~/.areaday/credentials.ini` (or
+  `$AREADAY_CONFIG_DIR/credentials.ini`). `--check` reports the current key,
+  `--stdin` and `--key-file` work without a terminal, and `--reconfigure`
+  replaces the key. Keep keys private and do not commit or paste them into
+  public issues, prompts, or repositories. AreaDay does not need access to your
+  other files.
 - AreaDay is a research and vocabulary aid. Review generated results before
   relying on them in research or other professional work.

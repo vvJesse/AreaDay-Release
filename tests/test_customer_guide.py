@@ -34,7 +34,7 @@ class CustomerGuideTests(unittest.TestCase):
             "安装包路径：",
             "Installation verified",
             "credentials.ini",
-            "api_key =",
+            "configure_openalex.py",
             "https://guide.areaday.app/",
         )
         for phrase in required_phrases:

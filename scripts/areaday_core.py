@@ -5,6 +5,7 @@ from __future__ import annotations
 import configparser
 import hashlib
 import json
+import os
 import re
 import shutil
 import time
@@ -19,6 +20,8 @@ from typing import Any, Iterable
 OPENALEX_API = "https://api.openalex.org/works"
 AREADAY_CREDENTIALS = Path.home() / ".areaday" / "credentials.ini"
 LEGACY_CREDENTIALS = Path.home() / ".researchramp" / "credentials.ini"
+CONFIG_DIR_VARIABLE = "AREADAY_CONFIG_DIR"
+OPENALEX_API_KEY_VARIABLE = "OPENALEX_API_KEY"
 ARXIV_ID_RE = re.compile(
     r"(?:arxiv(?:\.org/(?:abs|pdf)/|:)|10\.48550/arxiv\.)("
     r"(?:[a-z][a-z.\-]+/\d{7})|(?:\d{4}\.\d{4,5})"
@@ -51,17 +54,29 @@ def write_jsonl(path: Path, values: Iterable[dict[str, Any]]) -> None:
     temporary.replace(path)
 
 
-def load_openalex_api_key() -> str | None:
+def credentials_path() -> Path:
+    """Return the AreaDay-owned OpenAlex configuration file."""
+    override = os.environ.get(CONFIG_DIR_VARIABLE, "").strip()
+    if override:
+        return Path(override).expanduser() / "credentials.ini"
+    return AREADAY_CREDENTIALS
+
+
+def load_openalex_api_key() -> str:
     """Read the one AreaDay-owned OpenAlex configuration."""
-    credentials = AREADAY_CREDENTIALS
+    environment_key = os.environ.get(OPENALEX_API_KEY_VARIABLE, "").strip()
+    if environment_key:
+        return accepted_api_key(environment_key, f"${OPENALEX_API_KEY_VARIABLE}")
+    credentials = credentials_path()
     if not credentials.is_file() and LEGACY_CREDENTIALS.is_file():
         credentials.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(LEGACY_CREDENTIALS, credentials)
         credentials.chmod(0o600)
     if not credentials.is_file():
         raise RuntimeError(
-            "OpenAlex setup is incomplete. Complete the one-time AreaDay "
-            f"configuration file first: {credentials}"
+            "AreaDay needs a personal OpenAlex API key before it can search. "
+            "Run the one-time OpenAlex configuration and paste the key into: "
+            f"{credentials}"
         )
     parser = configparser.ConfigParser(interpolation=None)
     try:
@@ -72,8 +87,22 @@ def load_openalex_api_key() -> str | None:
     if not parser.has_section("openalex"):
         raise ValueError("AreaDay credentials do not contain [openalex]")
     api_key = parser.get("openalex", "api_key", fallback="").strip()
+    return accepted_api_key(api_key, str(credentials))
+
+
+def accepted_api_key(api_key: str, source: str) -> str:
+    """Reject the values AreaDay cannot search with, with advice that works."""
+    if not api_key:
+        raise RuntimeError(
+            "AreaDay needs a personal OpenAlex API key before it can search. "
+            f"Add the key after 'api_key =' in: {source}"
+        )
     if api_key.lower() == "anonymous":
-        return None
+        raise RuntimeError(
+            "AreaDay no longer supports anonymous OpenAlex access, because the "
+            "shared anonymous budget cannot finish a corpus. Replace "
+            f"'anonymous' with a personal API key in: {source}"
+        )
     if not re.fullmatch(r"[A-Za-z0-9_-]{12,200}", api_key):
         raise ValueError("AreaDay contains an invalid OpenAlex API key")
     return api_key

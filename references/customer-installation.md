@@ -53,9 +53,11 @@ Upgrading the Skill therefore does not erase an existing registry.
 
 The installer retains the former online setup as a compatibility fallback for
 old, platform-neutral bundles. New platform bundles use the included runtime.
-When OpenAlex has not been configured, installation starts with anonymous
-access so an agent installation never waits for private interactive input. The
-customer may run the platform OpenAlex configuration script later to add a key.
+When OpenAlex has not been configured, installation stops and asks for the
+customer's personal API key: setup writes the local configuration file, opens it
+in the customer's own editor, and returns at once without waiting, and it never
+falls back to anonymous access. The customer pastes the key, saves the file and
+tells the agent to continue; the agent then verifies it with `--check`.
 
 For WorkBuddy manual recovery, place the complete `areaday` folder under the
 user-level `.workbuddy/skills` directory instead. After setup, reopen Codex or

@@ -52,6 +52,17 @@ Windows 路径可能类似：
 C:\Users\你的名字\Downloads\AreaDay-windows-x64-v1.1.0.zip
 ```
 
+### AI 助手会请求的权限
+
+AreaDay 完全在你自己的电脑上运行，但有几件事需要你授权，助手会在开始前一次性向你申请：
+
+- **联网**：向 OpenAlex 检索论文元数据、下载论文全文（全文也可能来自论文所在的出版社或机构仓库网址）；只有在选择 arXiv 时才会访问 arXiv。
+- **写入本机目录**：领域注册表与复习状态存放在系统应用数据目录（macOS 为 `~/Library/Application Support/AreaDay/data`），OpenAlex 配置存放在 `~/.areaday/credentials.ini`，词向量模型存放在 `~/.areaday/models`，运行环境装在本 Skill 目录内；建立词表与生成简报时还会写入你确认的工作区目录。
+- **本机端口（打开工作台时）**：工作台会在本机 `127.0.0.1` 启动一个只对本机开放的小型服务（优先 8765 端口），再用浏览器打开页面。若你的助手默认禁止访问本机端口，打开工作台这一步会失败，需要为它放开权限。
+- **系统计划任务（仅当你设置每周简报或每日复习提醒时）**：由助手在你的系统里创建定时任务。
+
+如果你不愿意授予某项权限，助手会告诉你哪一步会受影响，而不是安静地降级处理。
+
 ## 三、让 AI 助手完成安装
 
 在 Codex 或 WorkBuddy 中新建任务，把下面这段文字粘贴到输入框，并将“安装包路径”替换为刚刚下载的 ZIP 完整路径：
@@ -99,8 +110,14 @@ AI 助手会完成以下工作：
 接下来：
 
 1. 根据 AI 助手的提问，确认研究范围和本地保存位置。
-2. 确认后，AreaDay 将准备检索论文。如果电脑上还没有 OpenAlex API Key，此时会同时打开两个窗口：浏览器中的 Key 获取说明页，以及本地 `credentials.ini` 文本文件。
-3. 按说明页登录或免费注册 OpenAlex，复制完整 Key，粘贴到文本文件的 `api_key =` 后面并保存。不要把 Key 发到聊天框。保存后 AreaDay 会自动验证，验证成功便会继续运行。
+2. 确认后，AreaDay 会准备检索论文。检索需要你自己的 OpenAlex API Key（免费）。如果还没配置，AreaDay 会让你运行一条命令：
+
+   ```text
+   .venv/bin/python scripts/configure_openalex.py
+   ```
+
+3. 这条命令会把配置文件 `~/.areaday/credentials.ini` 打开在你的文本编辑器里，然后立刻结束——不会有任何程序在等你输入。到 https://openalex.org/settings/api 登录或免费注册，复制完整 Key，粘贴到文件里 `api_key =` 的后面，保存文件，然后回到对话告诉 Agent「填好了，继续」，它会自动验证并接着往下做。
+   不要把 Key 发到聊天框，也不要粘贴到任何在线工具。想随时确认当前有没有配置好，可以运行 `.venv/bin/python scripts/configure_openalex.py --check`。
 4. AreaDay 开始检索论文、分析语料并准备词表。这个过程可能需要一段时间；不要关闭正在执行任务的 Codex 或 WorkBuddy。
 5. 校准页面打开后，完成 30 道单词识别题。
 6. 答题结束后，AreaDay 会生成个人领域词表并打开工作台。

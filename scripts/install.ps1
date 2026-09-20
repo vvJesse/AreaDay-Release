@@ -13,7 +13,6 @@ $ModelDir = if ($env:AREADAY_MODEL_DIR) { $env:AREADAY_MODEL_DIR } else { Join-P
 $SetupScript = Join-Path $ScriptDir "setup_dependencies.py"
 $PortableRuntimeScript = Join-Path $ScriptDir "prepare_portable_runtime.py"
 $MigrationScript = Join-Path $ScriptDir "migrate_areaday_data.py"
-$OpenAlexSetupScript = Join-Path $ScriptDir "configure_openalex.ps1"
 $OpenAlexConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { Join-Path $HOME ".areaday" }
 $OpenAlexConfig = Join-Path $OpenAlexConfigDir "credentials.ini"
 
@@ -187,11 +186,14 @@ function Complete-Installation {
         throw "AreaDay data migration did not complete."
     }
     if ($Mode -eq "install") {
-        if (-not (Test-Path -LiteralPath $OpenAlexConfig -PathType Leaf)) {
-            & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $OpenAlexSetupScript -Anonymous
-            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $OpenAlexConfig -PathType Leaf)) {
-                throw "OpenAlex anonymous setup did not complete."
-            }
+        $HasKey = $false
+        if (Test-Path -LiteralPath $OpenAlexConfig -PathType Leaf) {
+            $HasKey = [bool](Select-String -LiteralPath $OpenAlexConfig -Pattern '^\s*api_key\s*=\s*\S' -Quiet)
+        }
+        if (-not $HasKey) {
+            Write-Host "One setup step remains: connect your OpenAlex API key so AreaDay can search papers."
+            Write-Host "AreaDay needs a personal OpenAlex API key before it can search."
+            Write-Host "  powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\configure_openalex.ps1"
         }
     }
 }

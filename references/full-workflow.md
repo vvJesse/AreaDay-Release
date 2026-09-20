@@ -100,15 +100,14 @@ the embedding model. Success requires exit code 0 and the final offline
 verification reporting `"status": "ok"` after real spaCy and 384-dimensional
 embedding inference. Do not create a second environment.
 
-AreaDay may use keyed OpenAlex, anonymous OpenAlex, arXiv, or a useful
-combination. Choose the method autonomously from the confirmed research area
-(before this unattended phase starts, the user has already been told that they
-may leave the task and may not be available to answer another provider-choice
-question). If configuring an OpenAlex key would
-materially help, do that before telling the user they can leave, because key
-configuration requires interaction. Otherwise continue with anonymous OpenAlex
-or arXiv. Never ask the user to paste a key into chat, print it, or store it in
-corpus artifacts.
+AreaDay may use keyed OpenAlex, arXiv, or a useful combination. Choose the
+method autonomously from the confirmed research area (before this unattended
+phase starts, the user has already been told that they may leave the task and
+may not be available to answer another provider-choice question). OpenAlex has
+no anonymous mode and stops with a configuration error without a personal key,
+so configure the key before telling the user they can leave: key configuration
+requires interaction. Never ask the user to paste a key into chat, print it, or
+store it in corpus artifacts.
 
 ## Confirm the research domain
 

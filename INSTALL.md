@@ -77,12 +77,29 @@ extraction directory:
 - macOS: `sh scripts/install.sh`
 - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\install.ps1`
 
-Allow the setup to finish. The delivery ZIP already contains Python, packages,
-and models; do not download or independently resolve Python dependencies. When
-OpenAlex has not been configured yet, setup selects anonymous access without
-opening a window or waiting for interactive input. The user can later run the
-platform `configure_openalex` script with its reconfigure option to add a key. Never ask them to paste an
-OpenAlex API key into chat, and never print or expose its saved value.
+Allow the setup to finish. Setup writes to the Skill directory, to the
+application-data directory, and to `~/.areaday`, and it may reach the network;
+request those permissions before starting it. The delivery ZIP already contains
+Python, packages, and models; do not download or independently resolve Python
+dependencies.
+
+OpenAlex works only with the customer's own API key, and setup no longer falls
+back to anonymous access. Setup itself finishes without that key and prints the
+one remaining step:
+
+- macOS: `cd <installed Skill directory> && .venv/bin/python scripts/configure_openalex.py`
+- Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\configure_openalex.ps1`
+
+That command creates `~/.areaday/credentials.ini` when it does not exist, opens
+it in the customer's own text editor and returns immediately - it never waits for
+input. The customer pastes the key after `api_key =`, saves the file and says the
+agent may continue; the agent then runs `--check` and carries on once it reports
+a usable key. Never ask them to paste an OpenAlex API key into chat, and never
+print or expose the saved value. Useful variants: `--check` reports the configured
+key without changing anything, `--stdin` and `--key-file` work when no editor is
+available, `--print-path` prints the file to open, `--paste` types the key at a
+prompt instead, and `--reconfigure` reopens the file later. Setup opens the file
+itself when it is started with `--with-openalex`.
 
 ### 5. Verify
 
