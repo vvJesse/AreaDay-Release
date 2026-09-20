@@ -7,14 +7,14 @@ $ErrorActionPreference = "Stop"
 $UvVersion = "0.12.6"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillDir = Split-Path -Parent $ScriptDir
-$RuntimeDir = if ($env:AREADAY_RUNTIME_DIR) { $env:AREADAY_RUNTIME_DIR } else { Join-Path $SkillDir ".runtime" }
-$VenvDir = if ($env:AREADAY_VENV_DIR) { $env:AREADAY_VENV_DIR } else { Join-Path $SkillDir ".venv" }
-$ModelDir = if ($env:AREADAY_MODEL_DIR) { $env:AREADAY_MODEL_DIR } else { Join-Path $HOME ".areaday\models\sentence-transformers" }
+$RuntimeDir = Join-Path $SkillDir ".runtime"
+$VenvDir = Join-Path $SkillDir ".venv"
+$DataDir = Join-Path $SkillDir "data"
+$ModelDir = Join-Path $DataDir "models\sentence-transformers"
 $SetupScript = Join-Path $ScriptDir "setup_dependencies.py"
 $PortableRuntimeScript = Join-Path $ScriptDir "prepare_portable_runtime.py"
 $MigrationScript = Join-Path $ScriptDir "migrate_areaday_data.py"
-$OpenAlexSetupScript = Join-Path $ScriptDir "configure_openalex.ps1"
-$OpenAlexConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { Join-Path $HOME ".areaday" }
+$OpenAlexConfigDir = $DataDir
 $OpenAlexConfig = Join-Path $OpenAlexConfigDir "credentials.ini"
 
 function Get-BundledRuntime {
@@ -90,7 +90,7 @@ function Assert-WindowsRuntimePath([System.IO.FileInfo]$RuntimeArchive) {
         $Archive.Dispose()
     }
     if ($LongestPath -ge 260) {
-        throw "The AreaDay runtime path would exceed the Windows 260-character compatibility limit. Choose a shorter Skill or AREADAY_VENV_DIR path."
+        throw "The AreaDay runtime path would exceed the Windows 260-character compatibility limit. Choose a shorter Skill directory path."
     }
 }
 
@@ -187,11 +187,14 @@ function Complete-Installation {
         throw "AreaDay data migration did not complete."
     }
     if ($Mode -eq "install") {
-        if (-not (Test-Path -LiteralPath $OpenAlexConfig -PathType Leaf)) {
-            & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $OpenAlexSetupScript -Anonymous
-            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $OpenAlexConfig -PathType Leaf)) {
-                throw "OpenAlex anonymous setup did not complete."
-            }
+        $HasKey = $false
+        if (Test-Path -LiteralPath $OpenAlexConfig -PathType Leaf) {
+            $HasKey = [bool](Select-String -LiteralPath $OpenAlexConfig -Pattern '^\s*api_key\s*=\s*\S' -Quiet)
+        }
+        if (-not $HasKey) {
+            Write-Host "One setup step remains: connect your OpenAlex API key so AreaDay can search papers."
+            Write-Host "AreaDay needs a personal OpenAlex API key before it can search."
+            Write-Host "  powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\configure_openalex.ps1"
         }
     }
 }

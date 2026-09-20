@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import re
-import shutil
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,7 +18,6 @@ from vocabulary_cards import load_catalog
 
 CONTINUOUS_DIR = "continuous"
 DATABASE_NAME = "areaday.sqlite3"
-LEGACY_DATABASE_NAME = "researchramp.sqlite3"
 SETTINGS_NAME = "schedule.json"
 SAFE_RECORD_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$")
 
@@ -131,9 +129,6 @@ class ContinuousStore:
         self.root = self.workspace / CONTINUOUS_DIR
         self.root.mkdir(parents=True, exist_ok=True)
         self.database_path = self.root / DATABASE_NAME
-        legacy_database_path = self.root / LEGACY_DATABASE_NAME
-        if not self.database_path.is_file() and legacy_database_path.is_file():
-            shutil.copy2(legacy_database_path, self.database_path)
         self.settings_path = self.root / SETTINGS_NAME
         self.learning_store = learning_store or GlobalLearningStore(
             self.root / "global-learning.sqlite3"

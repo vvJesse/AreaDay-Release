@@ -1,15 +1,13 @@
 param(
-    [switch]$Reconfigure,
-    [switch]$Anonymous
+    [switch]$Reconfigure
 )
 
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillDir = Split-Path -Parent $ScriptDir
 $HelpPath = Join-Path $SkillDir "assets\openalex-help.html"
-$ConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { Join-Path $HOME ".areaday" }
+$ConfigDir = Join-Path $SkillDir "data"
 $ConfigPath = Join-Path $ConfigDir "credentials.ini"
-$LegacyConfigPath = Join-Path $HOME ".researchramp\credentials.ini"
 $Utf8 = [Text.UTF8Encoding]::new($false)
 
 if (-not (Test-Path -LiteralPath $HelpPath -PathType Leaf)) {
@@ -42,19 +40,6 @@ function Save-Configuration {
     Restrict-Configuration
 }
 
-if ($Anonymous) {
-    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf) -and (Test-Path -LiteralPath $LegacyConfigPath -PathType Leaf)) {
-        New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
-        Copy-Item -LiteralPath $LegacyConfigPath -Destination $ConfigPath
-        Restrict-Configuration
-        Write-Host "OpenAlex configuration migrated to $ConfigPath"
-        exit 0
-    }
-    Save-Configuration "anonymous"
-    Write-Host "OpenAlex anonymous access selected at $ConfigPath"
-    exit 0
-}
-
 function Test-OpenAlexKey {
     param([Parameter(Mandatory)][string]$ApiKey)
     try {
@@ -74,10 +59,6 @@ function Test-OpenAlexKey {
 
 function Ensure-ConfigurationTemplate {
     New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
-    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf) -and (Test-Path -LiteralPath $LegacyConfigPath -PathType Leaf)) {
-        Copy-Item -LiteralPath $LegacyConfigPath -Destination $ConfigPath
-        Restrict-Configuration
-    }
     if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
         [IO.File]::WriteAllText($ConfigPath, "[openalex]`napi_key = `n", $Utf8)
         Restrict-Configuration
@@ -92,23 +73,22 @@ function Open-SetupFiles {
     Start-Process $ConfigPath
     $script:SetupFilesOpened = $true
     Write-Host "OpenAlex configuration file: $ConfigPath"
-    Write-Host "On Windows, its default location is %USERPROFILE%\.areaday\credentials.ini."
     Write-Host "Paste the key after 'api_key =', then save the file."
 }
 
 $ApiKey = if ($Reconfigure) { "" } else { Read-Setting "api_key" }
 if (-not [string]::IsNullOrWhiteSpace($ApiKey)) {
     if ($ApiKey -eq "anonymous") {
-        Save-Configuration $ApiKey
-        Write-Host "OpenAlex anonymous access is already configured."
-        exit 0
+        Write-Warning "AreaDay no longer supports anonymous OpenAlex access. Replace the value after 'api_key =' with your personal API key."
     }
-    if ($ApiKey -match "^[A-Za-z0-9_-]{12,200}$" -and (Test-OpenAlexKey $ApiKey) -eq "valid") {
+    elseif ($ApiKey -match "^[A-Za-z0-9_-]{12,200}$" -and (Test-OpenAlexKey $ApiKey) -eq "valid") {
         Save-Configuration $ApiKey
         Write-Host "OpenAlex key verified at $ConfigPath"
         exit 0
     }
-    Write-Warning "The saved OpenAlex key could not be verified. Replace it in the configuration file."
+    else {
+        Write-Warning "The saved OpenAlex key could not be verified. Replace it in the configuration file."
+    }
 }
 
 Open-SetupFiles
@@ -123,9 +103,8 @@ while ($true) {
     $LastAttemptedValue = $ApiKey
 
     if ($ApiKey -eq "anonymous") {
-        Save-Configuration $ApiKey
-        Write-Host "OpenAlex anonymous access selected at $ConfigPath"
-        exit 0
+        Write-Warning "AreaDay no longer supports anonymous OpenAlex access. Paste your personal API key instead."
+        continue
     }
     if ($ApiKey -notmatch "^[A-Za-z0-9_-]{12,200}$") {
         Write-Warning "OpenAlex did not recognize the saved value. Replace it in the configuration file."

@@ -32,6 +32,7 @@ let domainGeneration = 0;
 let domainAbortController = new AbortController();
 let currentView = "vocabulary";
 let currentWord = null;
+let currentWordCard = null;
 let currentPaper = null;
 let currentReviewWord = null;
 let currentTerms = [];
@@ -224,11 +225,49 @@ function renderWordList(elementId, words) {
   const element = byId(elementId);
   element.replaceChildren();
   for (const word of words) {
+    const entry = document.createElement("div");
+    entry.className = "word-entry";
     const chip = document.createElement("span");
     chip.className = "word-chip";
     chip.textContent = word.display_form || word.lemma;
-    element.appendChild(chip);
+    entry.appendChild(chip);
+    const gloss = String(word.meaning_zh || word.meaning_en || "").trim();
+    if (gloss) {
+      const glossLine = document.createElement("p");
+      glossLine.className = "word-gloss";
+      glossLine.textContent = gloss;
+      entry.appendChild(glossLine);
+    }
+    const example = String(word.example || "").trim();
+    if (example) {
+      const exampleLine = document.createElement("p");
+      exampleLine.className = "word-example";
+      exampleLine.textContent = example;
+      entry.appendChild(exampleLine);
+    }
+    element.appendChild(entry);
   }
+}
+
+function renderAnswerDetail(word, response) {
+  const block = byId("answerDetail");
+  const meaningZh = String(word?.meaning_zh || "").trim();
+  const meaningEn = String(word?.meaning_en || "").trim();
+  const example = String(word?.example || "").trim();
+  if (!word || (!meaningZh && !meaningEn && !example)) {
+    block.hidden = true;
+    return;
+  }
+  const answerLabels = { known: "你选了「认识」", unsure: "你选了「不确定」", unknown: "你选了「不认识」" };
+  setText("answerDetailWord", word.display_form || word.lemma || "");
+  setText("answerDetailAnswer", answerLabels[response] || "");
+  setText("answerDetailMeaningZh", meaningZh);
+  setText("answerDetailMeaningEn", meaningEn);
+  setText("answerDetailExample", example ? `例句：${example}` : "");
+  byId("answerDetailMeaningZh").hidden = !meaningZh;
+  byId("answerDetailMeaningEn").hidden = !meaningEn;
+  byId("answerDetailExample").hidden = !example;
+  block.hidden = false;
 }
 
 function renderImportance(importance, retainedCount) {
@@ -324,12 +363,14 @@ function renderCalibration(calibration) {
     byId("mainNav").hidden = true;
     byId("questionView").hidden = false;
     currentWord = calibration.word.lemma;
+    currentWordCard = calibration.word;
     setText("word", calibration.word.display_form || calibration.word.lemma);
     setText("partOfSpeech", calibration.word.part_of_speech.toLowerCase());
     byId("progressBar").style.width = `${(calibration.answered / calibration.question_limit) * 100}%`;
     return false;
   }
   currentWord = null;
+  currentWordCard = null;
   byId("mainNav").hidden = Boolean(appState?.standalone);
   setText("progressText", "词表已建立");
   const counts = calibration.result.counts;
@@ -1293,12 +1334,15 @@ function renderSchedule(settings) {
 async function submitAnswer(response) {
   if (busy || !currentWord) return;
   busy = true;
+  const answeredCard = currentWordCard;
   answerButtons.forEach((button) => { button.disabled = true; });
   setCalibrationQuestionPending(true);
   try {
     const calibration = await request("/api/answer", { method: "POST", body: JSON.stringify({ lemma: currentWord, response }) });
     appState.calibration = calibration;
-    if (renderCalibration(calibration)) showView("vocabulary");
+    const complete = renderCalibration(calibration);
+    renderAnswerDetail(complete ? null : answeredCard, response);
+    if (complete) showView("vocabulary");
   } catch (error) { showError(error); }
   finally {
     busy = false;

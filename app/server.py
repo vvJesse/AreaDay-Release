@@ -10,6 +10,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import re
 import sqlite3
 import sys
 import threading
@@ -157,6 +158,60 @@ def load_words(
     return words
 
 
+CALIBRATION_GLOSS_LIMIT = 140
+CALIBRATION_EXAMPLE_LIMIT = 240
+SENTENCE_MINIMUM_WORDS = 6
+SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?。？！])\s+")
+KEYWORD_LINE = re.compile(r"^(index terms|keywords|key words|abstract)\b", re.IGNORECASE)
+
+
+def reads_as_full_sentence(sentence: str) -> bool:
+    """Reject keyword lines and mid-sentence fragments as card examples."""
+
+    stripped = sentence.strip()
+    if len(stripped.split()) < SENTENCE_MINIMUM_WORDS or KEYWORD_LINE.match(stripped):
+        return False
+    first = stripped[:1]
+    return first.isupper() or not first.isascii()
+
+
+def compact_card_text(value: object, *, limit: int) -> str:
+    """Return one short line so a reviewed gloss fits inside a single card."""
+
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "…"
+
+
+def example_sentence(
+    context_text: object,
+    surfaces: tuple[str, ...],
+    *,
+    limit: int = CALIBRATION_EXAMPLE_LIMIT,
+) -> str:
+    """Return the reviewed paper sentence that actually uses this surface form."""
+
+    text = re.sub(r"\s+", " ", str(context_text or "")).strip()
+    if not text:
+        return ""
+    patterns = [
+        re.compile(rf"(?<![a-z0-9]){re.escape(surface.casefold())}[a-z]*(?![a-z0-9])")
+        for surface in {item.strip() for item in surfaces if item and item.strip()}
+    ]
+    matches = []
+    for sentence in SENTENCE_BOUNDARY.split(text):
+        folded = sentence.casefold()
+        if any(pattern.search(folded) for pattern in patterns):
+            matches.append(sentence)
+    for sentence in matches:
+        if reads_as_full_sentence(sentence):
+            return compact_card_text(sentence, limit=limit)
+    if matches:
+        return compact_card_text(matches[0], limit=limit)
+    return compact_card_text(text, limit=limit)
+
+
 @dataclass(frozen=True)
 class DomainContext:
     domain_id: str
@@ -250,34 +305,60 @@ class AppRuntime:
         )
 
     @staticmethod
-    def _with_vocabulary_display_form(
+    def _catalog_card(
         context: DomainContext, raw_word: dict[str, Any]
-    ) -> dict[str, Any]:
-        word = dict(raw_word)
+    ) -> dict[str, Any] | None:
+        """Return this word's reviewed card, or None when the corpus has no card."""
+
         store = context.continuous_store
         if store is None:
-            return word
+            return None
         try:
-            card = store._catalog_card(
-                str(word.get("lemma") or ""),
-                str(word.get("part_of_speech") or ""),
+            return store._catalog_card(
+                str(raw_word.get("lemma") or ""),
+                str(raw_word.get("part_of_speech") or ""),
             )
         except ValueError:
+            return None
+
+    @classmethod
+    def _with_vocabulary_card_detail(
+        cls, context: DomainContext, raw_word: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Attach the reviewed spelling, gloss, and example to a calibration word.
+
+        The card front stays a recall prompt, so the page reveals this detail only
+        after the reader has answered.
+        """
+
+        word = dict(raw_word)
+        card = cls._catalog_card(context, word)
+        if card is None:
             return word
         word["display_form"] = card["display_form"]
+        word["meaning_en"] = compact_card_text(
+            card.get("meaning_en"), limit=CALIBRATION_GLOSS_LIMIT
+        )
+        word["meaning_zh"] = compact_card_text(
+            card.get("meaning_zh"), limit=CALIBRATION_GLOSS_LIMIT
+        )
+        word["example"] = example_sentence(
+            card.get("context"),
+            (str(card.get("display_form") or ""), str(word.get("lemma") or "")),
+        )
         return word
 
     def calibration_state(self, context: DomainContext) -> dict[str, Any]:
         calibration = dict(context.session.public_state())
         word = calibration.get("word")
         if isinstance(word, dict):
-            calibration["word"] = self._with_vocabulary_display_form(context, word)
+            calibration["word"] = self._with_vocabulary_card_detail(context, word)
         if not calibration.get("complete"):
             return calibration
         result = dict(calibration["result"])
         for key in ("known_boundary", "remaining_boundary"):
             result[key] = [
-                self._with_vocabulary_display_form(context, raw_word)
+                self._with_vocabulary_card_detail(context, raw_word)
                 for raw_word in result.get(key) or []
             ]
         mastery = self.mastery(context)

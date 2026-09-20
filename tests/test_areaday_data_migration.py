@@ -18,58 +18,48 @@ from migrate_areaday_data import migrate_areaday_data  # noqa: E402
 from domain_registry import default_registry_path  # noqa: E402
 
 
-class AreaDayDataMigrationTests(unittest.TestCase):
-    def test_registry_uses_stable_areaday_data_location(self) -> None:
+class AreaDayDataDirectoryTests(unittest.TestCase):
+    def test_registry_ignores_a_relocation_variable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             selected = Path(temporary) / "AreaDayData"
             with patch.dict(os.environ, {"AREADAY_DATA_DIR": str(selected)}):
                 self.assertEqual(
                     default_registry_path(),
-                    selected.resolve() / "real-domains.json",
+                    ROOT / "data" / "real-domains.json",
                 )
 
-    def test_legacy_skill_data_is_copied_once_without_deleting_the_source(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            skill_root = root / "areaday"
-            legacy = root / "researchramp" / "researchramp-data"
-            destination = root / "application-data"
-            skill_root.mkdir()
-            legacy.mkdir(parents=True)
-            registry = {"schema_version": 1, "active_domain_id": "alpha", "domains": []}
-            (legacy / "real-domains.json").write_text(json.dumps(registry), encoding="utf-8")
-            (legacy / "global-learning.json").write_text("{}", encoding="utf-8")
-
-            first = migrate_areaday_data(skill_root, destination)
-            second = migrate_areaday_data(skill_root, destination)
-
-            self.assertEqual(first["status"], "legacy_data_migrated")
-            self.assertEqual(second["status"], "areaday_data_ready")
+    def test_registry_defaults_inside_the_skill_without_an_override(self) -> None:
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("AREADAY_DATA_DIR", None)
             self.assertEqual(
-                json.loads((destination / "real-domains.json").read_text(encoding="utf-8")),
-                registry,
+                default_registry_path(),
+                ROOT / "data" / "real-domains.json",
             )
-            self.assertTrue((destination / "global-learning.json").is_file())
-            self.assertTrue((legacy / "real-domains.json").is_file())
 
-    def test_existing_areaday_registry_is_never_overwritten(self) -> None:
+    def test_the_data_directory_is_created_when_it_is_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            skill_root = root / "areaday"
-            legacy = root / "researchramp" / "researchramp-data"
-            destination = root / "application-data"
-            skill_root.mkdir()
-            legacy.mkdir(parents=True)
-            destination.mkdir()
-            (legacy / "real-domains.json").write_text('{"legacy":true}', encoding="utf-8")
-            (destination / "real-domains.json").write_text('{"current":true}', encoding="utf-8")
+            destination = Path(temporary) / "data"
 
-            result = migrate_areaday_data(skill_root, destination)
+            result = migrate_areaday_data(destination)
+
+            self.assertEqual(result["status"], "areaday_data_ready")
+            self.assertEqual(result["data_directory"], str(destination.resolve()))
+            self.assertTrue(destination.is_dir())
+            self.assertEqual(list(destination.iterdir()), [])
+
+    def test_existing_data_is_left_untouched(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "data"
+            destination.mkdir()
+            registry = destination / "real-domains.json"
+            registry.write_text(json.dumps({"schema_version": 1}), encoding="utf-8")
+
+            result = migrate_areaday_data(destination)
 
             self.assertEqual(result["status"], "areaday_data_ready")
             self.assertEqual(
-                (destination / "real-domains.json").read_text(encoding="utf-8"),
-                '{"current":true}',
+                json.loads(registry.read_text(encoding="utf-8")),
+                {"schema_version": 1},
             )
 
 

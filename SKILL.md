@@ -65,6 +65,52 @@ Do not hide initialization behind the vague phrase "建立工作台"; explicitly
 that AreaDay can establish a research area and build a personal domain
 vocabulary.
 
+## Host permissions to request once
+
+AreaDay runs inside the host's own permission model. Before the first step that
+needs one, request every permission that step requires in a single request, name
+the concrete provider or path each one covers, and wait for the grant instead of
+starting the work and retrying it later.
+
+**Network egress.** Metadata search and OpenAlex usage accounting talk to
+`api.openalex.org`, and full-text retrieval talks to `content.openalex.org` plus
+the publisher and repository hosts named in the paper metadata, so allow general
+HTTPS egress rather than a fixed host list. `arxiv.org` and `export.arxiv.org`
+are contacted only when arXiv is one of the selected providers. A delivery
+package whose portable runtime is present downloads nothing; only a from-source
+installation may reach the Python package indexes, the `uv` release host, and the
+model endpoint. AreaDay sends nothing anywhere else: ONNX Runtime telemetry is
+disabled, and there is no AreaDay server.
+
+**Writes outside this task's writable roots.** The upgrade-safe registry, the
+global learning state, the OpenAlex configuration file (`credentials.ini`) and
+the embedding model all live in this Skill's own `data/` directory, next to the
+installed runtime and virtual environment. Registered workspaces are written as
+well, and they may be anywhere on the filesystem. A host that can grant only one
+writable root therefore only has to grant this Skill directory. Nothing in the
+environment can move these files: that ``data/`` directory is the only place
+AreaDay reads them from.
+
+**Loopback for the workbench.** The launcher binds `127.0.0.1` on port 8765, or on
+a nearby fallback port, connects to that same local address to confirm the
+service is ready, and returns the URL for the host to open in the user's browser.
+`--port` pins the preferred port when the sandbox allows only one.
+A sandbox that refuses local connections breaks that readiness check, not the
+page itself: the launcher then reports the refused bind as a permission
+restriction rather than as a busy port. Request local-binding and loopback access
+for the single launcher command, or let the user run that step with the host's
+network restriction lifted.
+
+**Scheduled tasks.** Weekly briefs and daily reminders need the operating
+system's own scheduler. AreaDay only writes the schedule handoff and the reminder
+state; the host creates the scheduled task, which may need its own permission
+step.
+
+If the user or the host refuses a permission, say which step stops working and
+what the alternatives are. Do not silently degrade, and do not invent a
+workaround that leaves papers, vocabulary, or learning state in an unexpected
+place.
+
 ## Open the workbench: fast path
 
 Requests to open AreaDay, view vocabulary or briefs, review words or terms,
@@ -80,7 +126,8 @@ From this Skill directory, run exactly one launcher command:
 Opening the workbench writes learning state beside this instance's registry and
 inside its registered workspaces. When those paths are outside the current
 task's writable roots, obtain host filesystem permission before running this
-single launcher command. Do not first run it in a restricted sandbox and then
+single launcher command, together with the loopback access listed under Host
+permissions to request once. Do not first run it in a restricted sandbox and then
 retry: a startup failure must be reported from that one invocation with its
 original cause.
 
@@ -126,7 +173,10 @@ If no registered domain exists, explain that the first research area must be
 initialized before the workbench can open. Treat any request to establish a
 research area or build or rebuild its personal domain vocabulary—including
 “构建词表”—as equivalent to `$areaday init`: read
-[full-workflow.md](references/full-workflow.md) completely.
+[full-workflow.md](references/full-workflow.md) completely, and
+[workspace-files.md](references/workspace-files.md) for what the workspace then
+holds: finished material, handoff files, state that must survive, and
+disposable output.
 
 Treat everything after the user confirms the profile and workspace—discovery,
 candidate review, PDF acquisition, corpus analysis, orthography review,
@@ -143,11 +193,23 @@ sparse, the workflow may continue with the smaller high-relevance corpus that
 can be found, clearly scoped as such. Do not create a later confirmation
 checkpoint solely for corpus size.
 
-During corpus acquisition, choose keyed OpenAlex, anonymous OpenAlex, arXiv, or
-a useful combination autonomously (before this unattended phase starts, the
-user has already been told that they may leave the task and may therefore not
-be available to answer another provider-choice question). Key setup, when
-worthwhile, happens before the unattended operation. Try at most three
+During corpus acquisition, choose keyed OpenAlex, arXiv, or a useful
+combination autonomously (before this unattended phase starts, the user has
+already been told that they may leave the task and may therefore not be
+available to answer another provider-choice question). OpenAlex needs the
+customer's own API key and has no anonymous fallback, so complete the key setup
+before the unattended operation: run `.venv/bin/python scripts/configure_openalex.py
+--check` to see whether a key is already configured. When it is not, run
+`.venv/bin/python scripts/configure_openalex.py`, which opens the credentials
+file in the user's own editor and returns at once, then stop and hand over: tell
+the user to paste the key after `api_key =`, save the file and say when they are
+done. Never ask for the key in chat, never wait or poll for it, and never print
+the saved value. When the user says they are done, run `--check` again and
+continue once it reports a usable key. `scripts/initialize.py run` enforces the
+same rule before its first checkpoint: without a usable key it opens the
+credentials file and exits with code 4. Exit code 4 means stop and hand over —
+never retry it in a loop, and never treat the missing key as something to work
+around. Try at most three
 meaningfully different retrieval strategies. A target of 70 papers is a useful
 reference for an active direction, not a viability floor. For a target-70 run,
 100 plausible candidates are already enough to stop searching merely for more
@@ -214,8 +276,9 @@ calibration questions. Do not claim that full initialization is complete until
 those answers and the personalized export have been verified.
 
 Start by checking the Skill-local runtime. If dependencies are missing,
-proactively request the required network and disk-write permission; after
-approval, run the platform installer yourself and verify it before continuing.
+proactively request the required network and disk-write permission, as listed
+under Host permissions to request once; after approval, run the platform
+installer yourself and verify it before continuing.
 Configure Python dependencies as part of setup rather than handing that work to
 the user. Do not read the
 long workflow reference for an ordinary workbench-opening request.

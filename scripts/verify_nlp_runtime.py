@@ -16,11 +16,11 @@ from pathlib import Path
 
 import numpy as np
 
+from areaday_paths import model_root
 from onnx_embeddings import OnnxSentenceEncoder
 
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_MODEL_DIR = Path.home() / ".areaday" / "models" / "sentence-transformers"
 MODEL_MANIFEST = SKILL_DIR / "references" / "embedding-model-manifest.json"
 SPACY_MODEL = "en_core_web_sm"
 
@@ -117,13 +117,20 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Require all model files to exist locally; make no model download.",
     )
-    parser.add_argument("--model-dir", type=Path, default=DEFAULT_MODEL_DIR)
+    parser.add_argument(
+        "--model-dir",
+        type=Path,
+        help=(
+            "Directory that holds the pinned embedding model (default: "
+            "models/sentence-transformers inside this Skill's data directory)."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    model_dir = args.model_dir.resolve()
+    model_dir = (args.model_dir or model_root()).resolve()
     if args.download_models:
         model_dir.mkdir(parents=True, exist_ok=True)
     elif not model_dir.exists():

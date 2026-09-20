@@ -77,12 +77,32 @@ extraction directory:
 - macOS: `sh scripts/install.sh`
 - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\install.ps1`
 
-Allow the setup to finish. The delivery ZIP already contains Python, packages,
-and models; do not download or independently resolve Python dependencies. When
-OpenAlex has not been configured yet, setup selects anonymous access without
-opening a window or waiting for interactive input. The user can later run the
-platform `configure_openalex` script with its reconfigure option to add a key. Never ask them to paste an
-OpenAlex API key into chat, and never print or expose its saved value.
+Allow the setup to finish. Setup writes inside the Skill directory - its `data`
+directory holds the registry, the global learning state, the OpenAlex
+configuration and the embedding model - and to the workspaces the customer
+registers, and it may reach the network; request those permissions before
+starting it. The delivery ZIP already contains
+Python, packages, and models; do not download or independently resolve Python
+dependencies.
+
+OpenAlex works only with the customer's own API key, and setup no longer falls
+back to anonymous access. Setup itself finishes without that key and prints the
+one remaining step:
+
+- macOS: `cd <installed Skill directory> && .venv/bin/python scripts/configure_openalex.py`
+- Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\configure_openalex.ps1`
+
+That command creates `data/credentials.ini` inside the installed Skill directory
+when it does not exist, opens
+it in the customer's own text editor and returns immediately - it never waits for
+input. The customer pastes the key after `api_key =`, saves the file and says the
+agent may continue; the agent then runs `--check` and carries on once it reports
+a usable key. Never ask them to paste an OpenAlex API key into chat, and never
+print or expose the saved value. Useful variants: `--check` reports the configured
+key without changing anything, `--stdin` and `--key-file` work when no editor is
+available, `--print-path` prints the file to open, `--paste` types the key at a
+prompt instead, and `--reconfigure` reopens the file later. Setup opens the file
+itself when it is started with `--with-openalex`.
 
 ### 5. Verify
 
@@ -105,3 +125,28 @@ Finally, ask the user to reopen the desktop application or start a new task if
 the newly installed Skill is not yet visible. The ordinary invocation is:
 
 `使用 $areaday`
+
+## Where AreaDay keeps its files
+
+Everything the Skill owns lives inside the Skill directory, and nowhere else:
+
+- `data/real-domains.json` — the domain registry, the only list of workspaces.
+- `data/credentials.ini` — the personal OpenAlex API key.
+- `data/global-learning.sqlite3` — learning state shared across domains.
+- `data/models/sentence-transformers` — the embedding model.
+- `.venv` and `.runtime` — the installed Python runtime.
+
+The Skill reads **no environment variable** to decide where any of this lives:
+there is no second copy in the home directory, no separate configuration
+directory, and no alternate data location. Moving a file is a change to the
+directory, not a change to a setting, so an install needs a writable Skill
+directory. If `sh scripts/install.sh` reports that the Skill directory is not
+writable, copy the Skill somewhere writable first; a sandbox that mounts the
+Skill read-only cannot be installed into as-is.
+
+The only environment variables the installer honours point at mirrors for hosts
+behind a restricted network. They never move a file:
+
+- `AREADAY_MODEL_ENDPOINT` — HTTPS origin the embedding model is downloaded from.
+- `AREADAY_PYPI_INDEX_URL` — Python package index the installer installs from.
+- `AREADAY_UV_INSTALLER_URL`, `AREADAY_UV_DOWNLOAD_URL` — where `uv` is fetched from.

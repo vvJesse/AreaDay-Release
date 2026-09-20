@@ -100,15 +100,16 @@ the embedding model. Success requires exit code 0 and the final offline
 verification reporting `"status": "ok"` after real spaCy and 384-dimensional
 embedding inference. Do not create a second environment.
 
-AreaDay may use keyed OpenAlex, anonymous OpenAlex, arXiv, or a useful
-combination. Choose the method autonomously from the confirmed research area
-(before this unattended phase starts, the user has already been told that they
-may leave the task and may not be available to answer another provider-choice
-question). If configuring an OpenAlex key would
-materially help, do that before telling the user they can leave, because key
-configuration requires interaction. Otherwise continue with anonymous OpenAlex
-or arXiv. Never ask the user to paste a key into chat, print it, or store it in
-corpus artifacts.
+AreaDay may use keyed OpenAlex, arXiv, or a useful combination. Choose the
+method autonomously from the confirmed research area (before this unattended
+phase starts, the user has already been told that they may leave the task and
+may not be available to answer another provider-choice question). OpenAlex has
+no anonymous mode and stops with a configuration error without a personal key,
+so configure the key before telling the user they can leave: key configuration
+requires interaction. Never ask the user to paste a key into chat, print it, or
+store it in corpus artifacts. The controller enforces this itself: without a
+usable key it stops before its first checkpoint, opens the credentials file and
+exits with code 4 (see the preparation step below).
 
 ## Confirm the research domain
 
@@ -168,6 +169,12 @@ Windows PowerShell:
   --workspace <confirmed-workspace> `
   --target-papers 70
 ```
+
+Exit code 4 means the OpenAlex key is missing: the controller has already stopped
+before touching the workspace, and it opened the credentials file for the user.
+Tell the user to paste the key after `api_key =` and save the file, then stop and
+wait for them; do not retry the command until they say it is saved. Pass
+`--no-open` when no editor can be launched.
 
 Do not manually sequence `acquire_mini_corpus.py`,
 `finalize_domain_assets.py`, `app/server.py`, or `open_workbench.py` during
@@ -294,6 +301,10 @@ same compatible live service when present. Weekly scheduling follows
   in `vocabulary-calibration.md` and consumes them locally. Never scan the
   filesystem, infer another
   workspace, or copy domain data from another Skill installation.
+- [workspace-files.md](workspace-files.md) separates the finished material the
+  researcher receives from the handoff files, the state that must survive, and
+  the output that a rerun rebuilds. Report a corpus as complete only when the
+  files it lists in section 1 exist.
 - Vocabulary and terminology are both derived from retained full text. Titles
   and abstracts are for paper-level relevance only.
 - Calibration never selects, removes, or redefines terminology.

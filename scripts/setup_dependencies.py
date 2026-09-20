@@ -14,10 +14,11 @@ import urllib.request
 import hashlib
 from pathlib import Path
 
+from areaday_paths import model_root
+
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_VENV_DIR = SKILL_DIR / ".venv"
-DEFAULT_MODEL_DIR = Path.home() / ".areaday" / "models" / "sentence-transformers"
 OFFICIAL_HF_ENDPOINT = "https://huggingface.co"
 CHINA_HF_MIRROR = "https://hf-mirror.com"
 MODEL_MANIFEST = SKILL_DIR / "references" / "embedding-model-manifest.json"
@@ -38,7 +39,7 @@ def venv_python(venv_dir: Path, platform: str = sys.platform) -> Path:
     return venv_dir / "bin" / "python"
 
 
-def runtime_environment(model_dir: Path) -> dict[str, str]:
+def runtime_environment() -> dict[str, str]:
     environment = os.environ.copy()
     environment.setdefault("TOKENIZERS_PARALLELISM", "false")
     environment["ORT_DISABLE_TELEMETRY"] = "1"
@@ -46,7 +47,6 @@ def runtime_environment(model_dir: Path) -> dict[str, str]:
     environment.setdefault("HF_HUB_ETAG_TIMEOUT", "30")
     environment.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
     environment.setdefault("HF_HUB_VERBOSITY", "error")
-    environment["AREADAY_MODEL_DIR"] = str(model_dir)
     return environment
 
 
@@ -330,7 +330,7 @@ def verify(
         else "Verifying the complete NLP runtime without model downloads...",
         flush=True,
     )
-    environment = runtime_environment(model_dir)
+    environment = runtime_environment()
     if endpoint:
         environment["AREADAY_MODEL_ENDPOINT"] = endpoint
         if endpoint == CHINA_HF_MIRROR:
@@ -423,7 +423,7 @@ def install(venv_dir: Path, model_dir: Path) -> None:
         raise SystemExit(
             f"Python 3.10+ is required; this installer is running under {sys.version.split()[0]}."
         )
-    environment = runtime_environment(model_dir)
+    environment = runtime_environment()
     if not venv_python(venv_dir).exists():
         create_environment(venv_dir, environment)
     if python_version(venv_python(venv_dir)) < MINIMUM_PYTHON:
@@ -446,14 +446,21 @@ def parse_args() -> argparse.Namespace:
         help="Install packages and models, then run real NLP inference.",
     )
     parser.add_argument("--venv-dir", type=Path, default=DEFAULT_VENV_DIR)
-    parser.add_argument("--model-dir", type=Path, default=DEFAULT_MODEL_DIR)
+    parser.add_argument(
+        "--model-dir",
+        type=Path,
+        help=(
+            "Directory that holds the pinned embedding model (default: "
+            "models/sentence-transformers inside this Skill's data directory)."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     venv_dir = args.venv_dir.resolve()
-    model_dir = args.model_dir.resolve()
+    model_dir = (args.model_dir or model_root()).resolve()
     if args.install:
         try:
             install(venv_dir, model_dir)

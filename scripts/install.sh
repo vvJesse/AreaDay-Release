@@ -4,15 +4,23 @@ set -eu
 UV_VERSION="0.12.6"
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SKILL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-RUNTIME_DIR=${AREADAY_RUNTIME_DIR:-"$SKILL_DIR/.runtime"}
-VENV_DIR=${AREADAY_VENV_DIR:-"$SKILL_DIR/.venv"}
-MODEL_DIR=${AREADAY_MODEL_DIR:-"$HOME/.areaday/models/sentence-transformers"}
+RUNTIME_DIR="$SKILL_DIR/.runtime"
+VENV_DIR="$SKILL_DIR/.venv"
+DATA_DIR="$SKILL_DIR/data"
+MODEL_DIR="$DATA_DIR/models/sentence-transformers"
 SETUP_SCRIPT="$SCRIPT_DIR/setup_dependencies.py"
 PORTABLE_RUNTIME_SCRIPT="$SCRIPT_DIR/prepare_portable_runtime.py"
 MIGRATION_SCRIPT="$SCRIPT_DIR/migrate_areaday_data.py"
 OPENALEX_SETUP_SCRIPT="$SCRIPT_DIR/configure_openalex.sh"
-OPENALEX_CONFIG="$HOME/.areaday/credentials.ini"
+OPENALEX_CONFIG="$DATA_DIR/credentials.ini"
 MODE=${1:---install}
+WITH_OPENALEX=0
+if [ "${2:-}" = "--with-openalex" ]; then
+  WITH_OPENALEX=1
+elif [ -n "${2:-}" ]; then
+  echo "Usage: sh scripts/install.sh [--check|--install|--bootstrap-only|--runtime-only] [--with-openalex]" >&2
+  exit 2
+fi
 OPENALEX_SETUP_PID=""
 RUNTIME_STAGE=""
 
@@ -35,13 +43,15 @@ wait_for_openalex_setup() {
   if [ -n "$OPENALEX_SETUP_PID" ]; then
     if ! wait "$OPENALEX_SETUP_PID"; then
       OPENALEX_SETUP_PID=""
-      echo "OpenAlex setup did not complete." >&2
+      echo "AreaDay needs a personal OpenAlex API key before it can search." >&2
+      echo "Run '$VENV_DIR/bin/python scripts/configure_openalex.py' and paste the key it asks for." >&2
       return 1
     fi
     OPENALEX_SETUP_PID=""
   fi
   if [ ! -f "$OPENALEX_CONFIG" ]; then
-    echo "OpenAlex setup did not create $OPENALEX_CONFIG" >&2
+    echo "AreaDay needs a personal OpenAlex API key. Save it in $OPENALEX_CONFIG" >&2
+    echo "Run '$VENV_DIR/bin/python scripts/configure_openalex.py' to paste the key there." >&2
     return 1
   fi
 }
@@ -52,10 +62,16 @@ trap 'cleanup_runtime_stage; stop_openalex_setup; exit 130' HUP INT TERM
 case "$MODE" in
   --check|--install|--bootstrap-only|--runtime-only) ;;
   *)
-    echo "Usage: sh scripts/install.sh [--check|--install|--bootstrap-only|--runtime-only]" >&2
+    echo "Usage: sh scripts/install.sh [--check|--install|--bootstrap-only|--runtime-only] [--with-openalex]" >&2
     exit 2
     ;;
 esac
+
+if [ "$MODE" != "--check" ] && [ ! -w "$SKILL_DIR" ]; then
+  echo "AreaDay installs into $SKILL_DIR, which is not writable." >&2
+  echo "Copy the Skill into a writable directory and run this script there." >&2
+  exit 1
+fi
 
 if [ "$MODE" = "--check" ]; then
   VENV_PYTHON="$VENV_DIR/bin/python"
@@ -146,12 +162,23 @@ install_bundled_runtime() {
 
 finish_installation() {
   "$VENV_DIR/bin/python" "$MIGRATION_SCRIPT"
-  if [ "$MODE" = "--install" ]; then
+  if [ "$MODE" = "--install" ] && [ "$WITH_OPENALEX" -eq 1 ]; then
     wait_for_openalex_setup
   fi
 }
 
-if [ "$MODE" = "--install" ]; then
+report_openalex_next_step() {
+  if [ "$MODE" != "--install" ] || [ "$WITH_OPENALEX" -eq 1 ]; then
+    return 0
+  fi
+  if [ -f "$OPENALEX_CONFIG" ] && grep -q '^[[:space:]]*api_key[[:space:]]*=[[:space:]]*[^[:space:]]' "$OPENALEX_CONFIG"; then
+    return 0
+  fi
+  echo "One setup step remains: connect your OpenAlex API key so AreaDay can search papers."
+  echo "  cd '$SKILL_DIR' && '$VENV_DIR/bin/python' scripts/configure_openalex.py"
+}
+
+if [ "$MODE" = "--install" ] && [ "$WITH_OPENALEX" -eq 1 ]; then
   sh "$OPENALEX_SETUP_SCRIPT" &
   OPENALEX_SETUP_PID=$!
 fi
@@ -160,6 +187,7 @@ if find_bundled_runtime; then
   install_bundled_runtime "$BUNDLED_RUNTIME"
   finish_installation
   echo "AreaDay is ready. The bundled runtime was verified without downloading dependencies."
+  report_openalex_next_step
   exit 0
 else
   runtime_lookup_status=$?
@@ -223,6 +251,7 @@ if "$UV_BIN" run --isolated --no-project --no-config --managed-python --python 3
   if ! "$UV_BIN" cache clean --no-config; then
     echo "Warning: installation succeeded, but the disposable uv cache could not be cleaned." >&2
   fi
+  report_openalex_next_step
   exit 0
 else
   exit $?

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -15,7 +18,15 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from initialize import InitializationController, InitializationError  # noqa: E402
+from initialize import (  # noqa: E402
+    EXIT_MISSING_KEY,
+    InitializationController,
+    InitializationError,
+    openalex_key_gate,
+)
+from initialize import main as initialize_main  # noqa: E402
+from initialize import parse_args as parse_initialize_args  # noqa: E402
+from open_workbench import WorkbenchConflict  # noqa: E402
 from tests.test_initial_pipeline import valid_test_profile  # noqa: E402
 
 
@@ -168,6 +179,36 @@ class InitializationControllerTests(unittest.TestCase):
             status = json.loads(controller.status_path.read_text(encoding="utf-8"))
             self.assertFalse(status["terminal"])
             self.assertEqual(status["checkpoint"], "orthography_review_needed")
+
+    def test_workbench_conflict_is_a_clean_error_instead_of_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = InitializationController(controller_args(root))
+            registry = SimpleNamespace(
+                register=lambda *_args, **_kwargs: SimpleNamespace(
+                    domain_id="test-domain"
+                )
+            )
+            denial = WorkbenchConflict(
+                "AreaDay cannot bind a loopback port anywhere in the candidate "
+                "range 43131-43140. Every attempt was refused by the operating "
+                "system or by the sandbox rather than by another service."
+            )
+            with (
+                patch("initialize.DomainRegistry", return_value=registry),
+                patch(
+                    "initialize.launchable_registry_domain_ids",
+                    return_value=("test-domain",),
+                ),
+                patch("initialize.ensure_workbench", side_effect=denial),
+            ):
+                with self.assertRaises(InitializationError) as raised:
+                    controller._launch_and_verify({"profile_id": "test-domain"})
+
+            self.assertIn(
+                "refused by the operating system or by the sandbox",
+                str(raised.exception),
+            )
 
     def test_launch_verification_uses_the_selected_fallback_port(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -509,6 +550,105 @@ class InitializationControllerTests(unittest.TestCase):
             self.assertEqual(payload["next_action"]["actor"], "user")
             self.assertTrue(payload["service"]["vocabulary_ready"])
             self.assertTrue(payload["service"]["terminology_ready"])
+
+
+class OpenAlexKeyGateTests(unittest.TestCase):
+    """A missing key stops the run before it touches the workspace."""
+
+    def test_gate_hands_over_the_file_and_stops(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            credentials = Path(temporary) / "config" / "credentials.ini"
+            printed = io.StringIO()
+            with patch("initialize.credentials_path", return_value=credentials), patch(
+                "initialize.load_openalex_api_key",
+                side_effect=RuntimeError("AreaDay needs a personal OpenAlex API key."),
+            ), patch("initialize.open_in_editor", return_value="open") as editor, contextlib.redirect_stdout(
+                printed
+            ):
+                code = openalex_key_gate()
+
+            self.assertEqual(code, EXIT_MISSING_KEY)
+            editor.assert_called_once_with(credentials)
+            self.assertTrue(credentials.is_file())
+            self.assertIn("api_key =", credentials.read_text(encoding="utf-8"))
+            message = printed.getvalue()
+            self.assertIn("no usable OpenAlex API key", message)
+            self.assertIn("Then run this command again. Nothing else runs until then.", message)
+
+    def test_gate_can_skip_the_editor_without_skipping_the_handover(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            credentials = Path(temporary) / "config" / "credentials.ini"
+            with patch("initialize.credentials_path", return_value=credentials), patch(
+                "initialize.load_openalex_api_key",
+                side_effect=RuntimeError("AreaDay needs a personal OpenAlex API key."),
+            ), patch("initialize.open_in_editor") as editor, contextlib.redirect_stdout(io.StringIO()):
+                code = openalex_key_gate(open_editor=False)
+
+            self.assertEqual(code, EXIT_MISSING_KEY)
+            editor.assert_not_called()
+            self.assertTrue(credentials.is_file())
+
+    def test_gate_accepts_a_configured_key(self) -> None:
+        with patch("initialize.load_openalex_api_key", return_value="A" * 22):
+            self.assertIsNone(openalex_key_gate())
+
+    def test_main_stops_before_the_controller_touches_the_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            credentials = root / "config" / "credentials.ini"
+            profile = root / "profile.json"
+            profile.write_text(json.dumps(valid_test_profile()), encoding="utf-8")
+            workspace = root / "workspace"
+            argv = [
+                "initialize.py",
+                "run",
+                "--profile",
+                str(profile),
+                "--workspace",
+                str(workspace),
+                "--no-open",
+            ]
+            with patch.object(sys, "argv", argv), patch(
+                "initialize.credentials_path", return_value=credentials
+            ), patch(
+                "initialize.load_openalex_api_key",
+                side_effect=RuntimeError("AreaDay needs a personal OpenAlex API key."),
+            ), contextlib.redirect_stdout(io.StringIO()):
+                code = initialize_main()
+
+            self.assertEqual(code, EXIT_MISSING_KEY)
+            self.assertFalse(workspace.exists())
+
+
+class WorkbenchPortArgumentTests(unittest.TestCase):
+    """The workbench port must be settable without rewriting the command."""
+
+    def parse(self, extra: list[str]) -> argparse.Namespace:
+        argv = [
+            "initialize.py",
+            "run",
+            "--profile",
+            "profile.json",
+            "--workspace",
+            "workspace",
+            *extra,
+        ]
+        with patch.object(sys, "argv", argv):
+            return parse_initialize_args()
+
+    def test_the_port_comes_from_the_flag_only(self) -> None:
+        self.assertEqual(self.parse([]).port, 8765)
+        self.assertEqual(self.parse(["--port", "9322"]).port, 9322)
+
+    def test_an_environment_variable_cannot_set_the_port(self) -> None:
+        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "9411"}, clear=False):
+            self.assertEqual(self.parse([]).port, 8765)
+
+    def test_an_unusable_port_stops_the_command(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.parse(["--port", "not-a-port"])
+        self.assertEqual(raised.exception.code, 2)
 
 
 if __name__ == "__main__":

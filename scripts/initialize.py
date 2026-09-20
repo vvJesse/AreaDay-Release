@@ -8,6 +8,11 @@ hand work back to the host agent for contextual review, but it becomes terminal
 after either the live library service proves that both vocabulary and terminology
 are available for the selected registered domain or all three bounded retrieval
 strategies fail to obtain even one usable PDF.
+
+A run also stops before it does anything else when no usable OpenAlex API key is
+configured.  The credentials file is opened for the user, the reason is printed
+once, and the process exits with code 4: nothing runs until the key is saved and
+the command is started again.
 """
 
 from __future__ import annotations
@@ -33,6 +38,11 @@ from acquire_mini_corpus import (
     candidate_sufficiency_count,
     load_retrieval_state,
 )
+from configure_openalex import (
+    SETTINGS_URL as OPENALEX_SETTINGS_URL,
+    open_in_editor,
+    prepare_for_editing,
+)
 from domain_registry import (
     DomainRegistry,
     default_registry_path,
@@ -48,6 +58,11 @@ from vocabulary_cards import (
 from open_workbench import (
     DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
     HOST,
+    WorkbenchAccessError,
+    WorkbenchCleanupError,
+    WorkbenchConflict,
+    WorkbenchStartupError,
+    default_port,
     ensure_workbench,
     launchable_registry_domain_ids,
     probe_workbench,
@@ -55,7 +70,7 @@ from open_workbench import (
 )
 from orthography_contract import orthography_summary_is_complete
 from research_profile import validate_profile
-from areaday_core import read_json, utc_now, write_json
+from areaday_core import credentials_path, load_openalex_api_key, read_json, utc_now, write_json
 from terminology_assets import load_finalized_terminology
 
 
@@ -63,6 +78,13 @@ SCHEMA_VERSION = 1
 APP_API_VERSION = 6
 STATUS_NAME = "status.json"
 LOCK_NAME = ".initialization.lock"
+EXIT_MISSING_KEY = 4
+WORKBENCH_FAILURES = (
+    WorkbenchConflict,
+    WorkbenchStartupError,
+    WorkbenchAccessError,
+    WorkbenchCleanupError,
+)
 
 
 class InitializationError(RuntimeError):
@@ -630,21 +652,24 @@ class InitializationController:
                 DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
             ),
         )
-        launch = ensure_workbench(
-            self.registry_path,
-            domain_id,
-            "vocabulary",
-            self.args.port,
-            expected_domain_ids=domain_ids,
-            starter=starter,
-        )
-        selected_port = int(launch["port"])
-        identity_probe = probe_workbench(
-            selected_port,
-            self.registry_path,
-            expected_domain_ids=domain_ids,
-            timeout=2.0,
-        )
+        try:
+            launch = ensure_workbench(
+                self.registry_path,
+                domain_id,
+                "vocabulary",
+                self.args.port,
+                expected_domain_ids=domain_ids,
+                starter=starter,
+            )
+            selected_port = int(launch["port"])
+            identity_probe = probe_workbench(
+                selected_port,
+                self.registry_path,
+                expected_domain_ids=domain_ids,
+                timeout=2.0,
+            )
+        except WORKBENCH_FAILURES as error:
+            raise InitializationError(str(error)) from error
         if identity_probe.kind.value != "match" or identity_probe.identity is None:
             raise InitializationError("The launched workbench failed its identity probe")
 
@@ -806,6 +831,47 @@ class InitializationController:
         return payload
 
 
+def openalex_key_gate(*, open_editor: bool = True) -> int | None:
+    """Stop before any work when no usable OpenAlex key is configured.
+
+    AreaDay cannot search papers anonymously and the key cannot be invented, so a
+    missing or unusable key ends this invocation: the credentials file is opened
+    for the user to fill in, the reason is printed once, and no checkpoint, lock
+    or status file is touched.  Returns an exit code when the run must stop, or
+    ``None`` when a usable key is configured.
+    """
+    try:
+        load_openalex_api_key()
+    except (RuntimeError, ValueError) as error:
+        credentials = credentials_path()
+        opened = ""
+        try:
+            prepare_for_editing(credentials)
+            if open_editor:
+                opened = open_in_editor(credentials)
+        except OSError as problem:
+            print(f"Could not prepare {credentials}: {problem}")
+
+        lines = [
+            "AreaDay is not starting: no usable OpenAlex API key is configured.",
+            str(error),
+            f"Credentials file: {credentials}",
+            f"Get the key from {OPENALEX_SETTINGS_URL} (free; about 22 characters).",
+            (
+                f"It was opened with {opened}; paste the key after 'api_key =' and save it."
+                if opened
+                else "Open that file in a text editor and paste the key after 'api_key ='."
+            ),
+            "Then run this command again. Nothing else runs until then.",
+        ]
+        guide = Path(__file__).resolve().parent.parent / "assets" / "openalex-help.html"
+        if guide.is_file():
+            lines.append(f"Illustrated steps: {guide}")
+        print("\n".join(lines))
+        return EXIT_MISSING_KEY
+    return None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("run", "status"), nargs="?", default="run")
@@ -815,7 +881,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-papers", type=int, default=70)
     parser.add_argument("--download-workers", type=int, default=4)
     parser.add_argument("--download-workers-per-host", type=int, default=2)
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--port",
+        type=int,
+        help="Preferred workbench port; defaults to 8765.",
+    )
+    parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="do not launch a text editor when the OpenAlex key is missing",
+    )
     parser.add_argument(
         "--idle-timeout-seconds",
         type=int,
@@ -829,6 +904,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("--download-workers must be positive")
     if not 1 <= args.download_workers_per_host <= args.download_workers:
         parser.error("--download-workers-per-host must be between 1 and --download-workers")
+    if args.port is None:
+        args.port = default_port()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
     if args.idle_timeout_seconds < 0:
@@ -838,6 +915,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.command == "run":
+        stopped = openalex_key_gate(open_editor=not args.no_open)
+        if stopped is not None:
+            return stopped
     controller = InitializationController(args)
     try:
         if args.command == "status":
