@@ -7,8 +7,8 @@ $ErrorActionPreference = "Stop"
 $UvVersion = "0.12.6"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillDir = Split-Path -Parent $ScriptDir
-$RuntimeDir = if ($env:AREADAY_RUNTIME_DIR) { $env:AREADAY_RUNTIME_DIR } else { Join-Path $SkillDir ".runtime" }
-$VenvDir = if ($env:AREADAY_VENV_DIR) { $env:AREADAY_VENV_DIR } else { Join-Path $SkillDir ".venv" }
+$RuntimeDir = Join-Path $SkillDir ".runtime"
+$VenvDir = Join-Path $SkillDir ".venv"
 $DataDir = Join-Path $SkillDir "data"
 $ModelDir = Join-Path $DataDir "models\sentence-transformers"
 $SetupScript = Join-Path $ScriptDir "setup_dependencies.py"
@@ -90,7 +90,7 @@ function Assert-WindowsRuntimePath([System.IO.FileInfo]$RuntimeArchive) {
         $Archive.Dispose()
     }
     if ($LongestPath -ge 260) {
-        throw "The AreaDay runtime path would exceed the Windows 260-character compatibility limit. Choose a shorter Skill or AREADAY_VENV_DIR path."
+        throw "The AreaDay runtime path would exceed the Windows 260-character compatibility limit. Choose a shorter Skill directory path."
     }
 }
 

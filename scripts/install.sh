@@ -4,8 +4,8 @@ set -eu
 UV_VERSION="0.12.6"
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SKILL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-RUNTIME_DIR=${AREADAY_RUNTIME_DIR:-"$SKILL_DIR/.runtime"}
-VENV_DIR=${AREADAY_VENV_DIR:-"$SKILL_DIR/.venv"}
+RUNTIME_DIR="$SKILL_DIR/.runtime"
+VENV_DIR="$SKILL_DIR/.venv"
 DATA_DIR="$SKILL_DIR/data"
 MODEL_DIR="$DATA_DIR/models/sentence-transformers"
 SETUP_SCRIPT="$SCRIPT_DIR/setup_dependencies.py"
@@ -66,6 +66,12 @@ case "$MODE" in
     exit 2
     ;;
 esac
+
+if [ "$MODE" != "--check" ] && [ ! -w "$SKILL_DIR" ]; then
+  echo "AreaDay installs into $SKILL_DIR, which is not writable." >&2
+  echo "Copy the Skill into a writable directory and run this script there." >&2
+  exit 1
+fi
 
 if [ "$MODE" = "--check" ]; then
   VENV_PYTHON="$VENV_DIR/bin/python"

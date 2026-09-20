@@ -125,3 +125,28 @@ Finally, ask the user to reopen the desktop application or start a new task if
 the newly installed Skill is not yet visible. The ordinary invocation is:
 
 `使用 $areaday`
+
+## Where AreaDay keeps its files
+
+Everything the Skill owns lives inside the Skill directory, and nowhere else:
+
+- `data/real-domains.json` — the domain registry, the only list of workspaces.
+- `data/credentials.ini` — the personal OpenAlex API key.
+- `data/global-learning.sqlite3` — learning state shared across domains.
+- `data/models/sentence-transformers` — the embedding model.
+- `.venv` and `.runtime` — the installed Python runtime.
+
+The Skill reads **no environment variable** to decide where any of this lives:
+there is no second copy in the home directory, no separate configuration
+directory, and no alternate data location. Moving a file is a change to the
+directory, not a change to a setting, so an install needs a writable Skill
+directory. If `sh scripts/install.sh` reports that the Skill directory is not
+writable, copy the Skill somewhere writable first; a sandbox that mounts the
+Skill read-only cannot be installed into as-is.
+
+The only environment variables the installer honours point at mirrors for hosts
+behind a restricted network. They never move a file:
+
+- `AREADAY_MODEL_ENDPOINT` — HTTPS origin the embedding model is downloaded from.
+- `AREADAY_PYPI_INDEX_URL` — Python package index the installer installs from.
+- `AREADAY_UV_INSTALLER_URL`, `AREADAY_UV_DOWNLOAD_URL` — where `uv` is fetched from.

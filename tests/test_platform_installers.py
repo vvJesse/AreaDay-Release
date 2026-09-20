@@ -22,6 +22,7 @@ class PlatformInstallerContractTests(unittest.TestCase):
         self.assertIn("prepare_portable_runtime.py", script)
         self.assertIn('OPENALEX_CONFIG="$DATA_DIR/credentials.ini"', script)
         self.assertIn("personal OpenAlex API key", script)
+        self.assertIn("Copy the Skill into a writable directory", script)
 
     def test_macos_openalex_setup_writes_inside_the_skill(self) -> None:
         wrapper = (ROOT / "scripts" / "configure_openalex.sh").read_text(encoding="utf-8")
@@ -56,6 +57,8 @@ class PlatformInstallerContractTests(unittest.TestCase):
                 "AREADAY_DATA_DIR",
                 "AREADAY_CONFIG_DIR",
                 "AREADAY_MODEL_DIR",
+                "AREADAY_RUNTIME_DIR",
+                "AREADAY_VENV_DIR",
                 "OPENALEX_API_KEY",
             ):
                 self.assertNotIn(marker, text)
