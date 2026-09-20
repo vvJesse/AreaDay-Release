@@ -28,6 +28,18 @@ class AreaDayDataMigrationTests(unittest.TestCase):
                     selected.resolve() / "real-domains.json",
                 )
 
+    def test_registry_defaults_inside_the_skill_without_an_override(self) -> None:
+        import areaday_paths
+
+        with patch.object(
+            areaday_paths, "legacy_data_roots", lambda platform_name=None: ()
+        ), patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("AREADAY_DATA_DIR", None)
+            self.assertEqual(
+                default_registry_path(),
+                ROOT / "data" / "real-domains.json",
+            )
+
     def test_legacy_skill_data_is_copied_once_without_deleting_the_source(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

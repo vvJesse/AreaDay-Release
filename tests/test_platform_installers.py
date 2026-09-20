@@ -20,7 +20,7 @@ class PlatformInstallerContractTests(unittest.TestCase):
         self.assertIn("base-python/bin/python3.12", script)
         self.assertIn("com.apple.quarantine", script)
         self.assertIn("prepare_portable_runtime.py", script)
-        self.assertIn('${AREADAY_CONFIG_DIR:-$HOME/.areaday}/credentials.ini', script)
+        self.assertIn('${AREADAY_CONFIG_DIR:-$DATA_DIR}/credentials.ini', script)
         self.assertIn("personal OpenAlex API key", script)
 
     def test_macos_openalex_setup_honours_the_configuration_directory(self) -> None:
@@ -38,6 +38,36 @@ class PlatformInstallerContractTests(unittest.TestCase):
         self.assertIn("report_openalex_next_step", script)
         self.assertIn("--with-openalex", script)
         self.assertIn("scripts/configure_openalex.py", script)
+
+    def test_installers_keep_areaday_data_inside_the_skill(self) -> None:
+        shell = (ROOT / "scripts" / "install.sh").read_text(encoding="utf-8")
+        windows = (ROOT / "scripts" / "install.ps1").read_text(encoding="utf-8")
+        windows_config = (ROOT / "scripts" / "configure_openalex.ps1").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('DATA_DIR=${AREADAY_DATA_DIR:-"$SKILL_DIR/data"}', shell)
+        self.assertIn(
+            'MODEL_DIR=${AREADAY_MODEL_DIR:-"$DATA_DIR/models/sentence-transformers"}',
+            shell,
+        )
+        self.assertIn(
+            '$DataDir = if ($env:AREADAY_DATA_DIR) { $env:AREADAY_DATA_DIR } '
+            'else { Join-Path $SkillDir "data" }',
+            windows,
+        )
+        self.assertIn('Join-Path $DataDir "models\\sentence-transformers"', windows)
+        self.assertIn(
+            '$OpenAlexConfigDir = if ($env:AREADAY_CONFIG_DIR) { '
+            '$env:AREADAY_CONFIG_DIR } else { $DataDir }',
+            windows,
+        )
+        self.assertIn(
+            '$ConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } '
+            'else { Join-Path $SkillDir "data" }',
+            windows_config,
+        )
+        self.assertNotIn("$HOME/.areaday", shell)
+        self.assertNotIn('Join-Path $HOME ".areaday"', windows + windows_config)
 
     def test_windows_x64_installer_uses_windows_runtime_and_data_migration(self) -> None:
         script = (ROOT / "scripts" / "install.ps1").read_text(encoding="utf-8")

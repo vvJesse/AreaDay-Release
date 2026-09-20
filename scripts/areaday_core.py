@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import areaday_paths
 import configparser
 import hashlib
 import json
 import os
 import re
-import shutil
 import time
 import urllib.error
 import urllib.parse
@@ -18,9 +18,10 @@ from typing import Any, Iterable
 
 
 OPENALEX_API = "https://api.openalex.org/works"
-AREADAY_CREDENTIALS = Path.home() / ".areaday" / "credentials.ini"
-LEGACY_CREDENTIALS = Path.home() / ".researchramp" / "credentials.ini"
-CONFIG_DIR_VARIABLE = "AREADAY_CONFIG_DIR"
+DEFAULT_CREDENTIALS = areaday_paths.data_directory() / areaday_paths.CREDENTIALS_FILENAME
+AREADAY_CREDENTIALS = DEFAULT_CREDENTIALS
+LEGACY_CREDENTIALS = areaday_paths.RESEARCHRAMP_CREDENTIALS
+CONFIG_DIR_VARIABLE = areaday_paths.CONFIG_DIR_VARIABLE
 OPENALEX_API_KEY_VARIABLE = "OPENALEX_API_KEY"
 ARXIV_ID_RE = re.compile(
     r"(?:arxiv(?:\.org/(?:abs|pdf)/|:)|10\.48550/arxiv\.)("
@@ -58,8 +59,10 @@ def credentials_path() -> Path:
     """Return the AreaDay-owned OpenAlex configuration file."""
     override = os.environ.get(CONFIG_DIR_VARIABLE, "").strip()
     if override:
-        return Path(override).expanduser() / "credentials.ini"
-    return AREADAY_CREDENTIALS
+        return Path(override).expanduser() / areaday_paths.CREDENTIALS_FILENAME
+    if AREADAY_CREDENTIALS != DEFAULT_CREDENTIALS:
+        return AREADAY_CREDENTIALS
+    return areaday_paths.credentials_path()
 
 
 def load_openalex_api_key() -> str:
@@ -68,10 +71,6 @@ def load_openalex_api_key() -> str:
     if environment_key:
         return accepted_api_key(environment_key, f"${OPENALEX_API_KEY_VARIABLE}")
     credentials = credentials_path()
-    if not credentials.is_file() and LEGACY_CREDENTIALS.is_file():
-        credentials.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(LEGACY_CREDENTIALS, credentials)
-        credentials.chmod(0o600)
     if not credentials.is_file():
         raise RuntimeError(
             "AreaDay needs a personal OpenAlex API key before it can search. "

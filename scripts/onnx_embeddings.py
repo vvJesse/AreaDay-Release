@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import areaday_paths
 import json
 import os
 from functools import lru_cache
@@ -13,17 +14,13 @@ import numpy as np
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 MODEL_MANIFEST = SKILL_DIR / "references" / "embedding-model-manifest.json"
-DEFAULT_MODEL_ROOT = Path.home() / ".areaday" / "models" / "sentence-transformers"
 MODEL_DIRECTORY_GLOB = "sentence-transformers--all-MiniLM-L6-v2--*"
 
 
 def resolve_model_path(model_root: Path | None = None) -> Path:
     """Return the newest installed snapshot of the pinned embedding model."""
 
-    configured = os.environ.get("AREADAY_MODEL_DIR")
-    root = model_root or (
-        Path(configured).expanduser() if configured else DEFAULT_MODEL_ROOT
-    )
+    root = model_root or areaday_paths.model_root()
     matches = sorted(root.glob(MODEL_DIRECTORY_GLOB))
     if not matches:
         raise FileNotFoundError(

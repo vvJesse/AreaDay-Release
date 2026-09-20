@@ -5,25 +5,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
-import sys
 from pathlib import Path
+
+from areaday_paths import data_root
 
 
 def areaday_data_root(platform_name: str | None = None) -> Path:
-    override = os.environ.get("AREADAY_DATA_DIR")
-    if override:
-        return Path(override).expanduser().resolve()
-    platform = (platform_name or sys.platform).lower()
-    if platform in {"darwin", "mac", "macos"}:
-        return Path.home() / "Library" / "Application Support" / "AreaDay" / "data"
-    if platform in {"win32", "windows", "win"}:
-        local_app_data = os.environ.get("LOCALAPPDATA")
-        if not local_app_data:
-            raise RuntimeError("Windows did not provide its local application-data directory.")
-        return Path(local_app_data) / "AreaDay" / "data"
-    raise RuntimeError("AreaDay supports macOS and Windows x64 only.")
+    """Return the AreaDay-owned data directory (see ``areaday_paths``)."""
+
+    return data_root(platform_name)
 
 
 def _legacy_candidates(skill_root: Path) -> tuple[Path, ...]:

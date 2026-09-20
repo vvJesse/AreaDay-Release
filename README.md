@@ -73,7 +73,7 @@ replace its established meaning.
   limit.
 - OpenAlex API keys are credentials.
   Set one with `python3 scripts/configure_openalex.py`, which verifies the key
-  and saves it to `~/.areaday/credentials.ini` (or
+  and saves it to `data/credentials.ini` inside the installed Skill directory (or
   `$AREADAY_CONFIG_DIR/credentials.ini`). `--check` reports the current key,
   `--stdin` and `--key-file` work without a terminal, and `--reconfigure`
   replaces the key. Keep keys private and do not commit or paste them into

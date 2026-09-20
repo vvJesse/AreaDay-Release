@@ -13,3 +13,6 @@ app/session.json
 **/vocabulary-calibration-session.json
 **/vocabulary-calibration-result.json
 **/personalized-vocabulary.tsv
+
+# AreaDay-owned data inside the Skill (registry, key, global learning, models)
+/data/

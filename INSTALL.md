@@ -77,9 +77,11 @@ extraction directory:
 - macOS: `sh scripts/install.sh`
 - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\install.ps1`
 
-Allow the setup to finish. Setup writes to the Skill directory, to the
-application-data directory, and to `~/.areaday`, and it may reach the network;
-request those permissions before starting it. The delivery ZIP already contains
+Allow the setup to finish. Setup writes inside the Skill directory - its `data`
+directory holds the registry, the global learning state, the OpenAlex
+configuration and the embedding model - and to the workspaces the customer
+registers, and it may reach the network; request those permissions before
+starting it. The delivery ZIP already contains
 Python, packages, and models; do not download or independently resolve Python
 dependencies.
 
@@ -90,7 +92,8 @@ one remaining step:
 - macOS: `cd <installed Skill directory> && .venv/bin/python scripts/configure_openalex.py`
 - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\configure_openalex.ps1`
 
-That command creates `~/.areaday/credentials.ini` when it does not exist, opens
+That command creates `data/credentials.ini` inside the installed Skill directory
+when it does not exist, opens
 it in the customer's own text editor and returns immediately - it never waits for
 input. The customer pastes the key after `api_key =`, saves the file and says the
 agent may continue; the agent then runs `--check` and carries on once it reports

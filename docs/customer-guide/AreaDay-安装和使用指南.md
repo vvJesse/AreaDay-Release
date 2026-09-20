@@ -57,7 +57,7 @@ C:\Users\你的名字\Downloads\AreaDay-windows-x64-v1.1.0.zip
 AreaDay 完全在你自己的电脑上运行，但有几件事需要你授权，助手会在开始前一次性向你申请：
 
 - **联网**：向 OpenAlex 检索论文元数据、下载论文全文（全文也可能来自论文所在的出版社或机构仓库网址）；只有在选择 arXiv 时才会访问 arXiv。
-- **写入本机目录**：领域注册表与复习状态存放在系统应用数据目录（macOS 为 `~/Library/Application Support/AreaDay/data`），OpenAlex 配置存放在 `~/.areaday/credentials.ini`，词向量模型存放在 `~/.areaday/models`，运行环境装在本 Skill 目录内；建立词表与生成简报时还会写入你确认的工作区目录。
+- **写入本机目录**：领域注册表、复习状态、OpenAlex 配置和词向量模型都存放在本 Skill 目录下的 `data/` 文件夹里，运行环境（`.runtime`、`.venv`）也在本 Skill 目录内；建立词表与生成简报时还会写入你确认的工作区目录。也就是说这个 Skill 只需要一个可写目录：它自己所在的位置。（旧版本写在系统应用数据目录和 `~/.areaday`；如果你之前已经配过，AreaDay 会继续沿用原位置，不会搬动也不会删除。）
 - **本机端口（打开工作台时）**：工作台会在本机 `127.0.0.1` 启动一个只对本机开放的小型服务（优先 8765 端口），再用浏览器打开页面。若你的助手默认禁止访问本机端口，打开工作台这一步会失败，需要为它放开权限。
 - **系统计划任务（仅当你设置每周简报或每日复习提醒时）**：由助手在你的系统里创建定时任务。
 
@@ -116,7 +116,7 @@ AI 助手会完成以下工作：
    .venv/bin/python scripts/configure_openalex.py
    ```
 
-3. 这条命令会把配置文件 `~/.areaday/credentials.ini` 打开在你的文本编辑器里，然后立刻结束——不会有任何程序在等你输入。到 https://openalex.org/settings/api 登录或免费注册，复制完整 Key，粘贴到文件里 `api_key =` 的后面，保存文件，然后回到对话告诉 Agent「填好了，继续」，它会自动验证并接着往下做。
+3. 这条命令会把配置文件（本 Skill 目录下的 `data/credentials.ini`）打开在你的文本编辑器里，然后立刻结束——不会有任何程序在等你输入。到 https://openalex.org/settings/api 登录或免费注册，复制完整 Key，粘贴到文件里 `api_key =` 的后面，保存文件，然后回到对话告诉 Agent「填好了，继续」，它会自动验证并接着往下做。
    不要把 Key 发到聊天框，也不要粘贴到任何在线工具。想随时确认当前有没有配置好，可以运行 `.venv/bin/python scripts/configure_openalex.py --check`。
 4. AreaDay 开始检索论文、分析语料并准备词表。这个过程可能需要一段时间；不要关闭正在执行任务的 Codex 或 WorkBuddy。
 5. 校准页面打开后，完成 30 道单词识别题。

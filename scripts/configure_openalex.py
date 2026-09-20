@@ -42,6 +42,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from areaday_paths import config_dir
+
 SETTINGS_URL = "https://openalex.org/settings/api"
 VERIFY_URL = "https://api.openalex.org/rate-limit"
 CONFIG_DIR_VARIABLE = "AREADAY_CONFIG_DIR"
@@ -96,10 +98,7 @@ class ConfigurationError(Exception):
 def resolve_config_dir(explicit: Path | None) -> Path:
     if explicit is not None:
         return Path(explicit).expanduser()
-    from_environment = os.environ.get(CONFIG_DIR_VARIABLE, "").strip()
-    if from_environment:
-        return Path(from_environment).expanduser()
-    return Path("~/.areaday").expanduser()
+    return config_dir()
 
 
 def read_key(path: Path) -> str:
@@ -484,7 +483,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--config-dir",
         type=Path,
         help=f"directory holding {CREDENTIALS_FILENAME} "
-        f"(default: ${CONFIG_DIR_VARIABLE} or ~/.areaday)",
+        f"(default: ${CONFIG_DIR_VARIABLE} or this Skill's data directory)",
     )
     parser.add_argument(
         "--timeout", type=float, default=20.0, help="seconds to wait for OpenAlex (default: 20)"

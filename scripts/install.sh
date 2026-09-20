@@ -6,12 +6,13 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SKILL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 RUNTIME_DIR=${AREADAY_RUNTIME_DIR:-"$SKILL_DIR/.runtime"}
 VENV_DIR=${AREADAY_VENV_DIR:-"$SKILL_DIR/.venv"}
-MODEL_DIR=${AREADAY_MODEL_DIR:-"$HOME/.areaday/models/sentence-transformers"}
+DATA_DIR=${AREADAY_DATA_DIR:-"$SKILL_DIR/data"}
+MODEL_DIR=${AREADAY_MODEL_DIR:-"$DATA_DIR/models/sentence-transformers"}
 SETUP_SCRIPT="$SCRIPT_DIR/setup_dependencies.py"
 PORTABLE_RUNTIME_SCRIPT="$SCRIPT_DIR/prepare_portable_runtime.py"
 MIGRATION_SCRIPT="$SCRIPT_DIR/migrate_areaday_data.py"
 OPENALEX_SETUP_SCRIPT="$SCRIPT_DIR/configure_openalex.sh"
-OPENALEX_CONFIG="${AREADAY_CONFIG_DIR:-$HOME/.areaday}/credentials.ini"
+OPENALEX_CONFIG="${AREADAY_CONFIG_DIR:-$DATA_DIR}/credentials.ini"
 MODE=${1:---install}
 WITH_OPENALEX=0
 if [ "${2:-}" = "--with-openalex" ]; then

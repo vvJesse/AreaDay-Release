@@ -14,10 +14,11 @@ import urllib.request
 import hashlib
 from pathlib import Path
 
+from areaday_paths import model_root
+
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_VENV_DIR = SKILL_DIR / ".venv"
-DEFAULT_MODEL_DIR = Path.home() / ".areaday" / "models" / "sentence-transformers"
 OFFICIAL_HF_ENDPOINT = "https://huggingface.co"
 CHINA_HF_MIRROR = "https://hf-mirror.com"
 MODEL_MANIFEST = SKILL_DIR / "references" / "embedding-model-manifest.json"
@@ -446,14 +447,21 @@ def parse_args() -> argparse.Namespace:
         help="Install packages and models, then run real NLP inference.",
     )
     parser.add_argument("--venv-dir", type=Path, default=DEFAULT_VENV_DIR)
-    parser.add_argument("--model-dir", type=Path, default=DEFAULT_MODEL_DIR)
+    parser.add_argument(
+        "--model-dir",
+        type=Path,
+        help=(
+            "Directory that holds the pinned embedding model (default: "
+            "models/sentence-transformers inside this Skill's data directory)."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     venv_dir = args.venv_dir.resolve()
-    model_dir = args.model_dir.resolve()
+    model_dir = (args.model_dir or model_root()).resolve()
     if args.install:
         try:
             install(venv_dir, model_dir)
