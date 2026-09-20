@@ -1,70 +1,33 @@
 #!/usr/bin/env python3
-"""Migrate legacy Skill-local data into AreaDay's upgrade-safe data directory."""
+"""Create AreaDay's own data directory and report where it is."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import shutil
 from pathlib import Path
 
 from areaday_paths import data_root
 
 
-def areaday_data_root(platform_name: str | None = None) -> Path:
+def areaday_data_root() -> Path:
     """Return the AreaDay-owned data directory (see ``areaday_paths``)."""
 
-    return data_root(platform_name)
+    return data_root()
 
 
-def _legacy_candidates(skill_root: Path) -> tuple[Path, ...]:
-    return (
-        skill_root / "researchramp-data",
-        skill_root.parent / "researchramp" / "researchramp-data",
-        skill_root.parent / "ResearchRamp" / "researchramp-data",
-    )
-
-
-def migrate_areaday_data(skill_root: Path, destination: Path) -> dict[str, str]:
-    skill_root = skill_root.expanduser().resolve()
+def migrate_areaday_data(destination: Path) -> dict[str, str]:
     destination = destination.expanduser().resolve()
-    registry = destination / "real-domains.json"
-    if registry.is_file():
-        return {"status": "areaday_data_ready", "data_directory": str(destination)}
-    source = next(
-        (
-            candidate
-            for candidate in _legacy_candidates(skill_root)
-            if (candidate / "real-domains.json").is_file()
-        ),
-        None,
-    )
-    if source is None:
-        destination.mkdir(parents=True, exist_ok=True)
-        return {"status": "areaday_data_ready", "data_directory": str(destination)}
-    if destination.exists() and any(destination.iterdir()):
-        raise RuntimeError(
-            "AreaDay data migration stopped because the destination already contains different data."
-        )
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        destination.rmdir()
-    shutil.copytree(source, destination, copy_function=shutil.copy2)
-    return {
-        "status": "legacy_data_migrated",
-        "source": str(source),
-        "data_directory": str(destination),
-    }
+    destination.mkdir(parents=True, exist_ok=True)
+    return {"status": "areaday_data_ready", "data_directory": str(destination)}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--skill-root", type=Path)
     parser.add_argument("--destination", type=Path)
     args = parser.parse_args()
-    skill_root = args.skill_root or Path(__file__).resolve().parents[1]
     destination = args.destination or areaday_data_root()
-    print(json.dumps(migrate_areaday_data(skill_root, destination), indent=2))
+    print(json.dumps(migrate_areaday_data(destination), indent=2))
     return 0
 
 

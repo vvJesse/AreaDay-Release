@@ -48,7 +48,6 @@ SETTINGS_URL = "https://openalex.org/settings/api"
 VERIFY_URL = "https://api.openalex.org/rate-limit"
 CONFIG_DIR_VARIABLE = "AREADAY_CONFIG_DIR"
 ENV_KEY_VARIABLE = "OPENALEX_API_KEY"
-LEGACY_CONFIG_PATH = Path("~/.researchramp/credentials.ini")
 CREDENTIALS_FILENAME = "credentials.ini"
 HELP_PAGE = Path("assets/openalex-help.html")
 SECTION_NAME = "openalex"
@@ -209,17 +208,6 @@ def has_openalex_section(lines: list[str]) -> bool:
         if section and section.group("name").strip().lower() == SECTION_NAME:
             return True
     return False
-
-
-def migrate_legacy_config(path: Path) -> None:
-    """Carry a key over from the pre-AreaDay configuration file."""
-    if path.exists():
-        return
-    legacy = LEGACY_CONFIG_PATH.expanduser()
-    if not legacy.is_file():
-        return
-    private_directory(path.parent)
-    write_private(path, without_stale_guidance(legacy.read_text(encoding="utf-8", errors="replace")))
 
 
 def save_key(path: Path, key: str) -> None:
@@ -507,11 +495,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.print_path:
         print(path)
         return EXIT_OK
-
-    try:
-        migrate_legacy_config(path)
-    except OSError as error:
-        return report(args, STATUS_MISSING, f"Could not prepare {path}: {error}", path, str(path))
 
     saved = read_key(path)
     source, effective = describe_source(path, saved)

@@ -87,12 +87,9 @@ global learning state, the OpenAlex configuration file (`credentials.ini`) and
 the embedding model all live in this Skill's own `data/` directory, next to the
 installed runtime and virtual environment. Registered workspaces are written as
 well, and they may be anywhere on the filesystem. A host that can grant only one
-writable root therefore only has to grant this Skill directory. Data written by
-versions up to 1.1.0 under the operating system's application-data directory
-(`~/Library/Application Support/AreaDay/data` on macOS, `%LOCALAPPDATA%\AreaDay\data`
-on Windows) or under `~/.areaday` is still read in place and is never moved or
-deleted. `AREADAY_DATA_DIR`, `AREADAY_MODEL_DIR` and `AREADAY_CONFIG_DIR`
-relocate each area independently.
+writable root therefore only has to grant this Skill directory.
+`AREADAY_DATA_DIR`, `AREADAY_MODEL_DIR` and `AREADAY_CONFIG_DIR` relocate each
+area independently.
 
 **Loopback for the workbench.** The launcher binds `127.0.0.1` on port 8765, or on
 a nearby fallback port, connects to that same local address to confirm the

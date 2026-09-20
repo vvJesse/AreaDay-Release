@@ -18,9 +18,6 @@ from typing import Any, Iterable
 
 
 OPENALEX_API = "https://api.openalex.org/works"
-DEFAULT_CREDENTIALS = areaday_paths.data_directory() / areaday_paths.CREDENTIALS_FILENAME
-AREADAY_CREDENTIALS = DEFAULT_CREDENTIALS
-LEGACY_CREDENTIALS = areaday_paths.RESEARCHRAMP_CREDENTIALS
 CONFIG_DIR_VARIABLE = areaday_paths.CONFIG_DIR_VARIABLE
 OPENALEX_API_KEY_VARIABLE = "OPENALEX_API_KEY"
 ARXIV_ID_RE = re.compile(
@@ -57,11 +54,6 @@ def write_jsonl(path: Path, values: Iterable[dict[str, Any]]) -> None:
 
 def credentials_path() -> Path:
     """Return the AreaDay-owned OpenAlex configuration file."""
-    override = os.environ.get(CONFIG_DIR_VARIABLE, "").strip()
-    if override:
-        return Path(override).expanduser() / areaday_paths.CREDENTIALS_FILENAME
-    if AREADAY_CREDENTIALS != DEFAULT_CREDENTIALS:
-        return AREADAY_CREDENTIALS
     return areaday_paths.credentials_path()
 
 

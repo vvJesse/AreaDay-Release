@@ -8,7 +8,6 @@ $SkillDir = Split-Path -Parent $ScriptDir
 $HelpPath = Join-Path $SkillDir "assets\openalex-help.html"
 $ConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { Join-Path $SkillDir "data" }
 $ConfigPath = Join-Path $ConfigDir "credentials.ini"
-$LegacyConfigPath = Join-Path $HOME ".researchramp\credentials.ini"
 $Utf8 = [Text.UTF8Encoding]::new($false)
 
 if (-not (Test-Path -LiteralPath $HelpPath -PathType Leaf)) {
@@ -60,10 +59,6 @@ function Test-OpenAlexKey {
 
 function Ensure-ConfigurationTemplate {
     New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
-    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf) -and (Test-Path -LiteralPath $LegacyConfigPath -PathType Leaf)) {
-        Copy-Item -LiteralPath $LegacyConfigPath -Destination $ConfigPath
-        Restrict-Configuration
-    }
     if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
         [IO.File]::WriteAllText($ConfigPath, "[openalex]`napi_key = `n", $Utf8)
         Restrict-Configuration

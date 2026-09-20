@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import contextlib
-import io
 import os
 import sys
 import tempfile
@@ -34,54 +32,19 @@ class AreaDayPathTests(unittest.TestCase):
         self.root = Path(self._temporary.name).resolve()
         self.skill = self.root / "AreaDay"
         self.skill.mkdir()
-        self.legacy = self.root / "legacy"
-        self.legacy.mkdir()
-        areaday_paths.reset_announcements()
-        self.addCleanup(areaday_paths.reset_announcements)
-        for target, value in (
-            ("SKILL_ROOT", self.skill),
-            ("legacy_data_roots", lambda platform_name=None: ()),
-            ("legacy_credentials_candidates", lambda: ()),
-            ("legacy_model_roots", lambda: ()),
-        ):
-            patcher = patch.object(areaday_paths, target, value)
-            patcher.start()
-            self.addCleanup(patcher.stop)
+        patcher = patch.object(areaday_paths, "SKILL_ROOT", self.skill)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         environment = patch.dict(os.environ, {}, clear=False)
         environment.start()
         self.addCleanup(environment.stop)
         for variable in (DATA_DIR_VARIABLE, CONFIG_DIR_VARIABLE, MODEL_DIR_VARIABLE):
             os.environ.pop(variable, None)
 
-    def use_legacy(self, kind: str, relative: str) -> Path:
-        """Point one legacy location at a prepared directory."""
-
-        target = self.legacy / relative
-        if "data_roots" in kind:
-            patcher = patch.object(
-                areaday_paths, "legacy_data_roots", lambda platform_name=None: (target,)
-            )
-        elif "credentials" in kind:
-            patcher = patch.object(
-                areaday_paths,
-                "legacy_credentials_candidates",
-                lambda: (target / CREDENTIALS_FILENAME,),
-            )
-        else:
-            patcher = patch.object(
-                areaday_paths, "legacy_model_roots", lambda: (target,)
-            )
-        patcher.start()
-        self.addCleanup(patcher.stop)
-        return target
-
-    def capture_notices(self) -> tuple[str, object]:
-        stream = io.StringIO()
-        return stream, contextlib.redirect_stderr(stream)
-
     # -- defaults live inside the Skill ------------------------------------
 
     def test_the_registry_lives_in_the_skill_data_directory(self) -> None:
+        self.assertEqual(areaday_paths.data_root(), self.skill / "data")
         self.assertEqual(
             areaday_paths.registry_path(),
             self.skill / "data" / REGISTRY_FILENAME,
@@ -126,93 +89,19 @@ class AreaDayPathTests(unittest.TestCase):
         with patch.dict(os.environ, {MODEL_DIR_VARIABLE: str(relocated)}):
             self.assertEqual(areaday_paths.model_root(), relocated)
 
-    # -- earlier locations are reused in place -----------------------------
-
-    def test_an_older_registry_is_reused_without_being_moved(self) -> None:
-        legacy = self.use_legacy("data_roots", "application-data")
-        legacy.mkdir(parents=True)
-        registry = legacy / REGISTRY_FILENAME
-        registry.write_text('{"schema_version": 1}', encoding="utf-8")
-
-        stream = io.StringIO()
-        with contextlib.redirect_stderr(stream):
-            first = areaday_paths.data_root()
-            second = areaday_paths.data_root()
-
-        self.assertEqual(first, legacy)
-        self.assertEqual(second, legacy)
-        self.assertTrue(registry.is_file())
-        self.assertFalse((self.skill / "data").exists())
-        notices = stream.getvalue()
-        self.assertIn(str(legacy), notices)
-        self.assertIn("Nothing was moved or deleted", notices)
-        self.assertEqual(notices.count("the domain registry"), 1)
-
-    def test_an_older_key_is_reused_without_being_moved(self) -> None:
-        legacy = self.use_legacy("credentials", "areaday")
-        legacy.mkdir(parents=True)
-        key = legacy / CREDENTIALS_FILENAME
-        key.write_text("[openalex]\napi_key = abcdefghijklmnop\n", encoding="utf-8")
-
-        stream = io.StringIO()
-        with contextlib.redirect_stderr(stream):
-            resolved = areaday_paths.credentials_path()
-
-        self.assertEqual(resolved, key)
-        self.assertTrue(key.is_file())
-        self.assertIn("the OpenAlex key", stream.getvalue())
-
-    def test_an_older_model_directory_is_reused(self) -> None:
-        legacy = self.use_legacy("model_roots", "models/sentence-transformers")
-        legacy.mkdir(parents=True)
-
-        stream = io.StringIO()
-        with contextlib.redirect_stderr(stream):
-            resolved = areaday_paths.model_root()
-
-        self.assertEqual(resolved, legacy)
-        self.assertIn("the embedding model", stream.getvalue())
-
-    def test_the_skill_directory_wins_once_it_holds_the_data(self) -> None:
-        legacy = self.use_legacy("data_roots", "application-data")
-        legacy.mkdir(parents=True)
-        (legacy / REGISTRY_FILENAME).write_text("{}", encoding="utf-8")
-        data = self.skill / "data"
-        data.mkdir(parents=True)
-        (data / REGISTRY_FILENAME).write_text("{}", encoding="utf-8")
-
-        stream = io.StringIO()
-        with contextlib.redirect_stderr(stream):
-            resolved = areaday_paths.data_root()
-
-        self.assertEqual(resolved, data)
-        self.assertEqual(stream.getvalue(), "")
-
-    def test_an_environment_override_ignores_the_older_locations(self) -> None:
-        legacy = self.use_legacy("data_roots", "application-data")
-        legacy.mkdir(parents=True)
-        (legacy / REGISTRY_FILENAME).write_text("{}", encoding="utf-8")
-        relocated = self.root / "elsewhere"
-
-        stream = io.StringIO()
-        with contextlib.redirect_stderr(stream), patch.dict(
-            os.environ, {DATA_DIR_VARIABLE: str(relocated)}
-        ):
-            self.assertEqual(areaday_paths.data_root(), relocated)
-
-        self.assertEqual(stream.getvalue(), "")
-
 
 class HardCodedLocationTests(unittest.TestCase):
     """Only ``areaday_paths`` may decide where AreaDay keeps its files."""
 
-    def test_no_module_defines_its_own_area_day_home(self) -> None:
+    def test_no_module_keeps_a_second_area_day_home(self) -> None:
         offenders = []
         for path in sorted((ROOT / "scripts").glob("*.py")):
             if path.name == "areaday_paths.py":
                 continue
-            if 'Path.home() / ".areaday"' in path.read_text(encoding="utf-8"):
-                offenders.append(path.name)
+            text = path.read_text(encoding="utf-8")
+            for marker in ('Path.home() / ".areaday"', "~/.researchramp", "PATH.home() / \".areaday\""):
+                if marker in text:
+                    offenders.append(f"{path.name}: {marker}")
         self.assertEqual(offenders, [])
 
     def test_no_installer_hardcodes_the_home_directory(self) -> None:
@@ -225,6 +114,7 @@ class HardCodedLocationTests(unittest.TestCase):
             text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
             self.assertNotIn("$HOME/.areaday", text, name)
             self.assertNotIn('Join-Path $HOME ".areaday"', text, name)
+            self.assertNotIn("researchramp", text.lower(), name)
 
     def test_the_skill_data_directory_is_never_committed(self) -> None:
         ignore_rules = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()

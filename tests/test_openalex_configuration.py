@@ -30,9 +30,6 @@ class OpenAlexConfigurationTests(unittest.TestCase):
         self._temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self._temporary.cleanup)
         self.root = Path(self._temporary.name)
-        legacy = patch("areaday_core.LEGACY_CREDENTIALS", self.root / "absent" / "credentials.ini")
-        legacy.start()
-        self.addCleanup(legacy.stop)
         environment = patch.dict(os.environ, {}, clear=False)
         environment.start()
         self.addCleanup(environment.stop)
@@ -45,8 +42,12 @@ class OpenAlexConfigurationTests(unittest.TestCase):
         return target
 
     def load(self, directory: Path | None = None, environment: str | None = None) -> str:
+        def configured_path() -> Path:
+            root = os.environ.get(CONFIG_DIR_VARIABLE, "").strip()
+            return (Path(root) if root else self.root) / "credentials.ini"
+
         with patch.dict(os.environ, {}, clear=False), patch(
-            "areaday_core.AREADAY_CREDENTIALS", self.root / "credentials.ini"
+            "areaday_core.credentials_path", configured_path
         ):
             os.environ.pop(CONFIG_DIR_VARIABLE, None)
             os.environ.pop(OPENALEX_API_KEY_VARIABLE, None)
@@ -90,12 +91,12 @@ class OpenAlexConfigurationTests(unittest.TestCase):
         with patch.dict(os.environ, {CONFIG_DIR_VARIABLE: str(relocated)}, clear=False):
             self.assertEqual(credentials_path(), relocated / "credentials.ini")
 
-    def test_the_default_configuration_directory_is_used_without_an_override(self) -> None:
-        with patch.dict(os.environ, {}, clear=False), patch(
-            "areaday_core.AREADAY_CREDENTIALS", self.root / "credentials.ini"
-        ):
+    def test_the_default_configuration_directory_is_the_skill_data_directory(self) -> None:
+        with patch.dict(os.environ, {}, clear=False):
             os.environ.pop(CONFIG_DIR_VARIABLE, None)
-            self.assertEqual(credentials_path(), self.root / "credentials.ini")
+            self.assertEqual(
+                credentials_path(), SKILL_DIR / "data" / "credentials.ini"
+            )
 
     def test_a_key_in_the_environment_takes_precedence(self) -> None:
         self.write_configuration("abcdefghijklmnop")
