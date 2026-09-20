@@ -203,7 +203,11 @@ file in the user's own editor and returns at once, then stop and hand over: tell
 the user to paste the key after `api_key =`, save the file and say when they are
 done. Never ask for the key in chat, never wait or poll for it, and never print
 the saved value. When the user says they are done, run `--check` again and
-continue once it reports a usable key. Try at most three
+continue once it reports a usable key. `scripts/initialize.py run` enforces the
+same rule before its first checkpoint: without a usable key it opens the
+credentials file and exits with code 4. Exit code 4 means stop and hand over —
+never retry it in a loop, and never treat the missing key as something to work
+around. Try at most three
 meaningfully different retrieval strategies. A target of 70 papers is a useful
 reference for an active direction, not a viability floor. For a target-70 run,
 100 plausible candidates are already enough to stop searching merely for more

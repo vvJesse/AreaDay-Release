@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -15,7 +18,13 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from initialize import InitializationController, InitializationError  # noqa: E402
+from initialize import (  # noqa: E402
+    EXIT_MISSING_KEY,
+    InitializationController,
+    InitializationError,
+    openalex_key_gate,
+)
+from initialize import main as initialize_main  # noqa: E402
 from tests.test_initial_pipeline import valid_test_profile  # noqa: E402
 
 
@@ -509,6 +518,74 @@ class InitializationControllerTests(unittest.TestCase):
             self.assertEqual(payload["next_action"]["actor"], "user")
             self.assertTrue(payload["service"]["vocabulary_ready"])
             self.assertTrue(payload["service"]["terminology_ready"])
+
+
+class OpenAlexKeyGateTests(unittest.TestCase):
+    """A missing key stops the run before it touches the workspace."""
+
+    def test_gate_hands_over_the_file_and_stops(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            credentials = Path(temporary) / "config" / "credentials.ini"
+            printed = io.StringIO()
+            with patch("initialize.credentials_path", return_value=credentials), patch(
+                "initialize.load_openalex_api_key",
+                side_effect=RuntimeError("AreaDay needs a personal OpenAlex API key."),
+            ), patch("initialize.open_in_editor", return_value="open") as editor, contextlib.redirect_stdout(
+                printed
+            ):
+                code = openalex_key_gate()
+
+            self.assertEqual(code, EXIT_MISSING_KEY)
+            editor.assert_called_once_with(credentials)
+            self.assertTrue(credentials.is_file())
+            self.assertIn("api_key =", credentials.read_text(encoding="utf-8"))
+            message = printed.getvalue()
+            self.assertIn("no usable OpenAlex API key", message)
+            self.assertIn("Then run this command again. Nothing else runs until then.", message)
+
+    def test_gate_can_skip_the_editor_without_skipping_the_handover(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            credentials = Path(temporary) / "config" / "credentials.ini"
+            with patch("initialize.credentials_path", return_value=credentials), patch(
+                "initialize.load_openalex_api_key",
+                side_effect=RuntimeError("AreaDay needs a personal OpenAlex API key."),
+            ), patch("initialize.open_in_editor") as editor, contextlib.redirect_stdout(io.StringIO()):
+                code = openalex_key_gate(open_editor=False)
+
+            self.assertEqual(code, EXIT_MISSING_KEY)
+            editor.assert_not_called()
+            self.assertTrue(credentials.is_file())
+
+    def test_gate_accepts_a_configured_key(self) -> None:
+        with patch.dict(os.environ, {"OPENALEX_API_KEY": "A" * 22}):
+            self.assertIsNone(openalex_key_gate())
+
+    def test_main_stops_before_the_controller_touches_the_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            credentials = root / "config" / "credentials.ini"
+            profile = root / "profile.json"
+            profile.write_text(json.dumps(valid_test_profile()), encoding="utf-8")
+            workspace = root / "workspace"
+            argv = [
+                "initialize.py",
+                "run",
+                "--profile",
+                str(profile),
+                "--workspace",
+                str(workspace),
+                "--no-open",
+            ]
+            with patch.object(sys, "argv", argv), patch(
+                "initialize.credentials_path", return_value=credentials
+            ), patch(
+                "initialize.load_openalex_api_key",
+                side_effect=RuntimeError("AreaDay needs a personal OpenAlex API key."),
+            ), contextlib.redirect_stdout(io.StringIO()):
+                code = initialize_main()
+
+            self.assertEqual(code, EXIT_MISSING_KEY)
+            self.assertFalse(workspace.exists())
 
 
 if __name__ == "__main__":

@@ -107,7 +107,9 @@ may not be available to answer another provider-choice question). OpenAlex has
 no anonymous mode and stops with a configuration error without a personal key,
 so configure the key before telling the user they can leave: key configuration
 requires interaction. Never ask the user to paste a key into chat, print it, or
-store it in corpus artifacts.
+store it in corpus artifacts. The controller enforces this itself: without a
+usable key it stops before its first checkpoint, opens the credentials file and
+exits with code 4 (see the preparation step below).
 
 ## Confirm the research domain
 
@@ -167,6 +169,12 @@ Windows PowerShell:
   --workspace <confirmed-workspace> `
   --target-papers 70
 ```
+
+Exit code 4 means the OpenAlex key is missing: the controller has already stopped
+before touching the workspace, and it opened the credentials file for the user.
+Tell the user to paste the key after `api_key =` and save the file, then stop and
+wait for them; do not retry the command until they say it is saved. Pass
+`--no-open` when no editor can be launched.
 
 Do not manually sequence `acquire_mini_corpus.py`,
 `finalize_domain_assets.py`, `app/server.py`, or `open_workbench.py` during
