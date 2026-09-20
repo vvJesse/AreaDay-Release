@@ -3,6 +3,7 @@ from __future__ import annotations
 import errno
 import hashlib
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -1305,6 +1306,31 @@ class BindDeniedTests(unittest.TestCase):
                 fallback_port_count=2,
             )
         self.assertIn("permission restriction, not a busy port", str(raised.exception))
+
+
+class DefaultPortTests(unittest.TestCase):
+    """A sandbox may allow one port, so the host can pin it in the environment."""
+
+    def test_without_an_override_the_documented_default_is_used(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(launcher.PORT_ENV, None)
+            self.assertEqual(launcher.default_port(), launcher.PORT)
+
+    def test_the_environment_pins_the_preferred_port(self) -> None:
+        with mock.patch.dict(os.environ, {launcher.PORT_ENV: " 9411 "}):
+            self.assertEqual(launcher.default_port(), 9411)
+
+    def test_a_blank_override_falls_back_to_the_default(self) -> None:
+        with mock.patch.dict(os.environ, {launcher.PORT_ENV: "   "}):
+            self.assertEqual(launcher.default_port(), launcher.PORT)
+
+    def test_an_unusable_override_is_reported_instead_of_ignored(self) -> None:
+        for raw in ("0", "70000", "http", "-1"):
+            with self.subTest(raw=raw):
+                with mock.patch.dict(os.environ, {launcher.PORT_ENV: raw}):
+                    with self.assertRaises(launcher.PortConfigurationError) as raised:
+                        launcher.default_port()
+                self.assertIn(launcher.PORT_ENV, str(raised.exception))
 
 
 if __name__ == "__main__":

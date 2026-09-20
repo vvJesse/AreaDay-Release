@@ -58,10 +58,12 @@ from vocabulary_cards import (
 from open_workbench import (
     DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
     HOST,
+    PortConfigurationError,
     WorkbenchAccessError,
     WorkbenchCleanupError,
     WorkbenchConflict,
     WorkbenchStartupError,
+    default_port,
     ensure_workbench,
     launchable_registry_domain_ids,
     probe_workbench,
@@ -880,7 +882,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-papers", type=int, default=70)
     parser.add_argument("--download-workers", type=int, default=4)
     parser.add_argument("--download-workers-per-host", type=int, default=2)
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--port",
+        type=int,
+        help=(
+            "Preferred workbench port; defaults to the AREADAY_WORKBENCH_PORT "
+            "environment variable or 8765."
+        ),
+    )
     parser.add_argument(
         "--no-open",
         action="store_true",
@@ -899,6 +908,11 @@ def parse_args() -> argparse.Namespace:
         parser.error("--download-workers must be positive")
     if not 1 <= args.download_workers_per_host <= args.download_workers:
         parser.error("--download-workers-per-host must be between 1 and --download-workers")
+    if args.port is None:
+        try:
+            args.port = default_port()
+        except PortConfigurationError as error:
+            parser.error(str(error))
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
     if args.idle_timeout_seconds < 0:

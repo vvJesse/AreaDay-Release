@@ -97,10 +97,12 @@ configuration directories inside it instead of widening the grant.
 **Loopback for the workbench.** The launcher binds `127.0.0.1` on port 8765, or on
 a nearby fallback port, connects to that same local address to confirm the
 service is ready, and returns the URL for the host to open in the user's browser.
+`AREADAY_WORKBENCH_PORT` pins the preferred port when the sandbox allows only one.
 A sandbox that refuses local connections breaks that readiness check, not the
-page itself. Request local-binding and loopback access for the single launcher
-command, or let the user run that step with the host's network restriction
-lifted.
+page itself: the launcher then reports the refused bind as a permission
+restriction rather than as a busy port. Request local-binding and loopback access
+for the single launcher command, or let the user run that step with the host's
+network restriction lifted.
 
 **Scheduled tasks.** Weekly briefs and daily reminders need the operating
 system's own scheduler. AreaDay only writes the schedule handoff and the reminder

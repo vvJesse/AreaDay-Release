@@ -25,6 +25,7 @@ from initialize import (  # noqa: E402
     openalex_key_gate,
 )
 from initialize import main as initialize_main  # noqa: E402
+from initialize import parse_args as parse_initialize_args  # noqa: E402
 from open_workbench import WorkbenchConflict  # noqa: E402
 from tests.test_initial_pipeline import valid_test_profile  # noqa: E402
 
@@ -617,6 +618,43 @@ class OpenAlexKeyGateTests(unittest.TestCase):
 
             self.assertEqual(code, EXIT_MISSING_KEY)
             self.assertFalse(workspace.exists())
+
+
+class WorkbenchPortArgumentTests(unittest.TestCase):
+    """The workbench port must be settable without rewriting the command."""
+
+    def parse(self, extra: list[str]) -> argparse.Namespace:
+        argv = [
+            "initialize.py",
+            "run",
+            "--profile",
+            "profile.json",
+            "--workspace",
+            "workspace",
+            *extra,
+        ]
+        with patch.object(sys, "argv", argv):
+            return parse_initialize_args()
+
+    def test_without_a_flag_the_port_comes_from_the_environment(self) -> None:
+        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "9411"}):
+            self.assertEqual(self.parse([]).port, 9411)
+
+    def test_the_explicit_flag_wins_over_the_environment(self) -> None:
+        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "9411"}):
+            self.assertEqual(self.parse(["--port", "9322"]).port, 9322)
+
+    def test_the_documented_default_still_applies(self) -> None:
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("AREADAY_WORKBENCH_PORT", None)
+            self.assertEqual(self.parse([]).port, 8765)
+
+    def test_an_unusable_override_stops_the_command(self) -> None:
+        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "not-a-port"}):
+            with self.assertRaises(SystemExit) as raised:
+                with contextlib.redirect_stderr(io.StringIO()):
+                    self.parse([])
+        self.assertEqual(raised.exception.code, 2)
 
 
 if __name__ == "__main__":

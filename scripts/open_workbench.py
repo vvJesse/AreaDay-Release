@@ -39,6 +39,7 @@ from workbench_protocol import (
 
 HOST = "127.0.0.1"
 PORT = 8765
+PORT_ENV = "AREADAY_WORKBENCH_PORT"
 VIEWS = ("vocabulary", "briefs", "review")
 PROBE_TIMEOUT_SECONDS = 0.4
 FALLBACK_PORT_COUNT = 9
@@ -90,16 +91,49 @@ class WorkbenchCleanupError(RuntimeError):
     """A launcher-owned child could not be confirmed stopped."""
 
 
+class PortConfigurationError(ValueError):
+    """The preferred workbench port is not a usable TCP port."""
+
+
+def default_port() -> int:
+    """Return the preferred port, honouring the host's environment override.
+
+    A restrictive sandbox may allow a single port instead of the default 8765,
+    and the host should be able to pin that port once for every command instead
+    of editing each command line.
+    """
+
+    raw = os.environ.get(PORT_ENV)
+    if raw is None or not raw.strip():
+        return PORT
+    try:
+        port = int(raw.strip(), 10)
+    except ValueError:
+        port = -1
+    if not 1 <= port <= 65535:
+        raise PortConfigurationError(
+            f"{PORT_ENV} must be a whole number between 1 and 65535; got {raw!r}."
+        )
+    return port
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    try:
+        preferred_port = default_port()
+    except PortConfigurationError as error:
+        parser.error(str(error))
     parser.add_argument("--domain", help="Explicit registered domain ID.")
     parser.add_argument("--view", choices=VIEWS, default="vocabulary")
     parser.add_argument("--registry", type=Path)
     parser.add_argument(
         "--port",
         type=int,
-        default=PORT,
-        help="Preferred workbench port; nearby fallbacks are selected automatically.",
+        default=preferred_port,
+        help=(
+            "Preferred workbench port; nearby fallbacks are selected "
+            f"automatically. Defaults to {PORT_ENV} or {PORT}."
+        ),
     )
     parser.add_argument(
         "--ready-calibration-domain",
