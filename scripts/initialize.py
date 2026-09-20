@@ -58,6 +58,10 @@ from vocabulary_cards import (
 from open_workbench import (
     DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
     HOST,
+    WorkbenchAccessError,
+    WorkbenchCleanupError,
+    WorkbenchConflict,
+    WorkbenchStartupError,
     ensure_workbench,
     launchable_registry_domain_ids,
     probe_workbench,
@@ -74,6 +78,12 @@ APP_API_VERSION = 6
 STATUS_NAME = "status.json"
 LOCK_NAME = ".initialization.lock"
 EXIT_MISSING_KEY = 4
+WORKBENCH_FAILURES = (
+    WorkbenchConflict,
+    WorkbenchStartupError,
+    WorkbenchAccessError,
+    WorkbenchCleanupError,
+)
 
 
 class InitializationError(RuntimeError):
@@ -641,21 +651,24 @@ class InitializationController:
                 DEFAULT_WORKBENCH_IDLE_TIMEOUT_SECONDS,
             ),
         )
-        launch = ensure_workbench(
-            self.registry_path,
-            domain_id,
-            "vocabulary",
-            self.args.port,
-            expected_domain_ids=domain_ids,
-            starter=starter,
-        )
-        selected_port = int(launch["port"])
-        identity_probe = probe_workbench(
-            selected_port,
-            self.registry_path,
-            expected_domain_ids=domain_ids,
-            timeout=2.0,
-        )
+        try:
+            launch = ensure_workbench(
+                self.registry_path,
+                domain_id,
+                "vocabulary",
+                self.args.port,
+                expected_domain_ids=domain_ids,
+                starter=starter,
+            )
+            selected_port = int(launch["port"])
+            identity_probe = probe_workbench(
+                selected_port,
+                self.registry_path,
+                expected_domain_ids=domain_ids,
+                timeout=2.0,
+            )
+        except WORKBENCH_FAILURES as error:
+            raise InitializationError(str(error)) from error
         if identity_probe.kind.value != "match" or identity_probe.identity is None:
             raise InitializationError("The launched workbench failed its identity probe")
 

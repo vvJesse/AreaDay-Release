@@ -57,6 +57,7 @@ class ProbeKind(str, Enum):
     STALE_RUNTIME = "stale_runtime"
     INCOMPATIBLE = "incompatible"
     OCCUPIED_UNKNOWN = "occupied_unknown"
+    BIND_DENIED = "bind_denied"
 
 
 @dataclass(frozen=True)
@@ -153,8 +154,11 @@ def _probe_bindability(port: int) -> ProbeResult | None:
             return None
         if _address_is_denied(error):
             return ProbeResult(
-                ProbeKind.OCCUPIED_UNKNOWN,
-                detail=f"AreaDay cannot bind this port: {type(error).__name__}: {error}",
+                ProbeKind.BIND_DENIED,
+                detail=(
+                    f"AreaDay is not allowed to bind {HOST}:{port}: "
+                    f"{type(error).__name__}: {error}"
+                ),
             )
         raise WorkbenchAccessError(
             f"AreaDay could not inspect loopback port {port}: {error}"
@@ -615,6 +619,11 @@ def _conflict(port: int, result: ProbeResult) -> WorkbenchConflict:
             "loaded domain set is stale. Stop that workbench and open it again. "
             f"Details: {result.detail}"
         )
+    if result.kind is ProbeKind.BIND_DENIED:
+        return WorkbenchConflict(
+            f"Port {port} cannot be bound by AreaDay: {result.detail}. That is a "
+            "permission or sandbox restriction, not a port used by another service."
+        )
     return WorkbenchConflict(
         f"Port {port} is occupied by a service that cannot be identified as "
         f"AreaDay: {result.detail or 'unknown response'}"
@@ -655,6 +664,17 @@ def _candidate_conflicts(
         + (f" ({results[candidate].detail})" if results[candidate].detail else "")
         for candidate in ports
     )
+    if results and all(
+        results[candidate].kind is ProbeKind.BIND_DENIED for candidate in ports
+    ):
+        return WorkbenchConflict(
+            "AreaDay cannot bind a loopback port anywhere in the candidate range "
+            f"{ports[0]}-{ports[-1]}. Every attempt was refused by the operating "
+            "system or by the sandbox rather than by another service, so this is a "
+            "permission restriction, not a busy port. Allow AreaDay to bind "
+            f"{HOST}, or run it outside that sandbox, and try again. "
+            f"Details: {details}"
+        )
     return WorkbenchConflict(
         "No compatible AreaDay workbench port is available in the candidate "
         f"range {ports[0]}-{ports[-1]}. Details: {details}"
@@ -707,7 +727,10 @@ def _start_on_candidate(
                     )
                 if now >= exit_grace_deadline:
                     excerpt = startup_log_excerpt(attempt.log_path)
-                    if last_probe.kind is ProbeKind.OCCUPIED_UNKNOWN:
+                    if last_probe.kind in {
+                        ProbeKind.OCCUPIED_UNKNOWN,
+                        ProbeKind.BIND_DENIED,
+                    }:
                         conflict = _conflict(port, last_probe)
                         if excerpt:
                             conflict = WorkbenchConflict(
@@ -747,6 +770,7 @@ def _start_on_candidate(
                     ProbeKind.STALE_RUNTIME,
                     ProbeKind.INCOMPATIBLE,
                     ProbeKind.OCCUPIED_UNKNOWN,
+                    ProbeKind.BIND_DENIED,
                     ProbeKind.UNRESOLVED,
                 }:
                     raise _conflict(port, final_probe)

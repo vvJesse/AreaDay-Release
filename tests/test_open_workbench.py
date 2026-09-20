@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import socket
@@ -1247,6 +1248,63 @@ class ProductionHandshakeTests(unittest.TestCase):
             expected_domain_ids=("alpha", "beta"),
             starter=mock.ANY,
         )
+
+
+class BindDeniedTests(unittest.TestCase):
+    """A sandbox that refuses loopback binds must not look like a busy port."""
+
+    def test_permission_denied_becomes_bind_denied_with_an_honest_detail(self) -> None:
+        listener = mock.Mock()
+        listener.bind.side_effect = PermissionError(
+            errno.EACCES, "Operation not permitted"
+        )
+        with mock.patch.object(launcher.socket, "socket", return_value=listener):
+            result = launcher._probe_bindability(launcher.PORT)
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertIs(result.kind, launcher.ProbeKind.BIND_DENIED)
+        self.assertIn("is not allowed to bind", result.detail)
+        listener.close.assert_called_once_with()
+
+    def test_every_denied_candidate_names_the_permission_restriction(self) -> None:
+        denied = launcher.ProbeResult(
+            launcher.ProbeKind.BIND_DENIED, detail="denied by policy"
+        )
+        ports = launcher.candidate_ports(43131, 2)
+        conflict = launcher._candidate_conflicts(
+            ports, {port: denied for port in ports}
+        )
+        message = str(conflict)
+        self.assertIn("cannot bind a loopback port", message)
+        self.assertIn("permission restriction, not a busy port", message)
+
+    def test_a_single_denied_port_is_not_reported_as_another_service(self) -> None:
+        denied = launcher.ProbeResult(
+            launcher.ProbeKind.BIND_DENIED, detail="denied by policy"
+        )
+        conflict = str(launcher._conflict(43131, denied))
+        self.assertIn("cannot be bound by AreaDay", conflict)
+        self.assertIn("not a port used by another service", conflict)
+
+    def test_ensure_workbench_reports_the_sandbox_instead_of_occupancy(self) -> None:
+        denied = launcher.ProbeResult(
+            launcher.ProbeKind.BIND_DENIED, detail="denied by policy"
+        )
+        with self.assertRaises(launcher.WorkbenchConflict) as raised:
+            launcher.ensure_workbench(
+                Path("/tmp/areaday-unused-registry.json"),
+                "domain-a",
+                "vocabulary",
+                43131,
+                expected_domain_ids=("domain-a",),
+                probe=lambda port, registry: denied,
+                starter=mock.Mock(),
+                monotonic=lambda: 0.0,
+                sleep=lambda seconds: None,
+                fallback_port_count=2,
+            )
+        self.assertIn("permission restriction, not a busy port", str(raised.exception))
 
 
 if __name__ == "__main__":

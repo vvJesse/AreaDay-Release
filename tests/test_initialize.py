@@ -25,6 +25,7 @@ from initialize import (  # noqa: E402
     openalex_key_gate,
 )
 from initialize import main as initialize_main  # noqa: E402
+from open_workbench import WorkbenchConflict  # noqa: E402
 from tests.test_initial_pipeline import valid_test_profile  # noqa: E402
 
 
@@ -177,6 +178,36 @@ class InitializationControllerTests(unittest.TestCase):
             status = json.loads(controller.status_path.read_text(encoding="utf-8"))
             self.assertFalse(status["terminal"])
             self.assertEqual(status["checkpoint"], "orthography_review_needed")
+
+    def test_workbench_conflict_is_a_clean_error_instead_of_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = InitializationController(controller_args(root))
+            registry = SimpleNamespace(
+                register=lambda *_args, **_kwargs: SimpleNamespace(
+                    domain_id="test-domain"
+                )
+            )
+            denial = WorkbenchConflict(
+                "AreaDay cannot bind a loopback port anywhere in the candidate "
+                "range 43131-43140. Every attempt was refused by the operating "
+                "system or by the sandbox rather than by another service."
+            )
+            with (
+                patch("initialize.DomainRegistry", return_value=registry),
+                patch(
+                    "initialize.launchable_registry_domain_ids",
+                    return_value=("test-domain",),
+                ),
+                patch("initialize.ensure_workbench", side_effect=denial),
+            ):
+                with self.assertRaises(InitializationError) as raised:
+                    controller._launch_and_verify({"profile_id": "test-domain"})
+
+            self.assertIn(
+                "refused by the operating system or by the sandbox",
+                str(raised.exception),
+            )
 
     def test_launch_verification_uses_the_selected_fallback_port(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
