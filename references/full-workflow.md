@@ -301,6 +301,10 @@ same compatible live service when present. Weekly scheduling follows
   in `vocabulary-calibration.md` and consumes them locally. Never scan the
   filesystem, infer another
   workspace, or copy domain data from another Skill installation.
+- [workspace-files.md](workspace-files.md) separates the finished material the
+  researcher receives from the handoff files, the state that must survive, and
+  the output that a rerun rebuilds. Report a corpus as complete only when the
+  files it lists in section 1 exist.
 - Vocabulary and terminology are both derived from retained full text. Titles
   and abstracts are for paper-level relevance only.
 - Calibration never selects, removes, or redefines terminology.

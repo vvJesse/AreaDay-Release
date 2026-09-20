@@ -173,7 +173,10 @@ If no registered domain exists, explain that the first research area must be
 initialized before the workbench can open. Treat any request to establish a
 research area or build or rebuild its personal domain vocabulary—including
 “构建词表”—as equivalent to `$areaday init`: read
-[full-workflow.md](references/full-workflow.md) completely.
+[full-workflow.md](references/full-workflow.md) completely, and
+[workspace-files.md](references/workspace-files.md) for what the workspace then
+holds: finished material, handoff files, state that must survive, and
+disposable output.
 
 Treat everything after the user confirms the profile and workspace—discovery,
 candidate review, PDF acquisition, corpus analysis, orthography review,
