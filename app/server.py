@@ -327,8 +327,8 @@ class AppRuntime:
     ) -> dict[str, Any]:
         """Attach the reviewed spelling, gloss, and example to a calibration word.
 
-        The card front stays a recall prompt, so the page reveals this detail only
-        after the reader has answered.
+        The card front stays a recall prompt: the page keeps this detail behind a
+        collapsed 显示答案 toggle, so the reader sees it only when they ask for it.
         """
 
         word = dict(raw_word)

@@ -610,10 +610,9 @@ header {
   background: rgba(255, 255, 255, 0.72);
   text-align: left;
 }
-.answer-detail-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 9px; font-size: 14px; }
-.answer-detail-label { color: var(--muted); }
-.answer-detail-head strong { font-size: 16px; }
-.answer-detail-choice { margin-left: auto; color: var(--muted); font-size: 13px; }
+.answer-detail-toggle { color: var(--green); font-size: 14px; cursor: pointer; }
+.answer-detail-toggle:hover { text-decoration: underline; }
+.answer-detail[open] .answer-detail-toggle { margin-bottom: 9px; }
 .answer-detail-gloss { margin: 0 0 6px; font-size: 14px; line-height: 1.55; }
 .answer-detail-gloss.is-secondary { color: var(--muted); font-size: 13px; }
 .answer-detail-example { margin: 0; padding-left: 10px; border-left: 2px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.55; }

@@ -43,15 +43,12 @@
           </p>
           <p id="calibrationHint" class="hint">请按第一反应回答。也可以直接按键盘 1、2、3。</p>
         </div>
-        <div id="answerDetail" class="answer-detail" hidden>
-          <p class="answer-detail-head">
-            <span class="answer-detail-label">上一个词</span><strong id="answerDetailWord">—</strong>
-            <span id="answerDetailAnswer" class="answer-detail-choice"></span>
-          </p>
+        <details id="answerDetail" class="answer-detail" hidden>
+          <summary id="answerDetailToggle" class="answer-detail-toggle">显示答案</summary>
           <p id="answerDetailMeaningZh" class="answer-detail-gloss"></p>
           <p id="answerDetailMeaningEn" class="answer-detail-gloss is-secondary"></p>
           <p id="answerDetailExample" class="answer-detail-example"></p>
-        </div>
+        </details>
       </section>
 
       <section id="vocabularyView" class="results app-view" hidden>
