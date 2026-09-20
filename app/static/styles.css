@@ -596,9 +596,8 @@ header {
 .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
 .review-card { padding: 28px; }
 .review-card > p { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.word-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
-.word-entry { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.word-chip { align-self: flex-start; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: white; font-size: 13px; }
+.word-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.word-chip { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: white; font-size: 13px; }
 
 .answer-detail {
   margin: 16px 0 0;

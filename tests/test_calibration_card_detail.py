@@ -262,6 +262,9 @@ class CardDetailUiTests(unittest.TestCase):
         self.assertNotIn("word-example", self.script)
         self.assertNotIn("word-gloss", self.styles)
         self.assertNotIn("word-example", self.styles)
+        self.assertIn(".word-list { display: flex; flex-wrap: wrap;", self.styles)
+        self.assertNotIn("word-entry", self.script)
+        self.assertNotIn("word-entry", self.styles)
 
 
 if __name__ == "__main__":

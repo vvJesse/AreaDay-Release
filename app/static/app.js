@@ -225,13 +225,10 @@ function renderWordList(elementId, words) {
   const element = byId(elementId);
   element.replaceChildren();
   for (const word of words) {
-    const entry = document.createElement("div");
-    entry.className = "word-entry";
     const chip = document.createElement("span");
     chip.className = "word-chip";
     chip.textContent = word.display_form || word.lemma;
-    entry.appendChild(chip);
-    element.appendChild(entry);
+    element.appendChild(chip);
   }
 }
 
