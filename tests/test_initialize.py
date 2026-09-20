@@ -589,7 +589,7 @@ class OpenAlexKeyGateTests(unittest.TestCase):
             self.assertTrue(credentials.is_file())
 
     def test_gate_accepts_a_configured_key(self) -> None:
-        with patch.dict(os.environ, {"OPENALEX_API_KEY": "A" * 22}):
+        with patch("initialize.load_openalex_api_key", return_value="A" * 22):
             self.assertIsNone(openalex_key_gate())
 
     def test_main_stops_before_the_controller_touches_the_workspace(self) -> None:
@@ -636,24 +636,18 @@ class WorkbenchPortArgumentTests(unittest.TestCase):
         with patch.object(sys, "argv", argv):
             return parse_initialize_args()
 
-    def test_without_a_flag_the_port_comes_from_the_environment(self) -> None:
-        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "9411"}):
-            self.assertEqual(self.parse([]).port, 9411)
+    def test_the_port_comes_from_the_flag_only(self) -> None:
+        self.assertEqual(self.parse([]).port, 8765)
+        self.assertEqual(self.parse(["--port", "9322"]).port, 9322)
 
-    def test_the_explicit_flag_wins_over_the_environment(self) -> None:
-        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "9411"}):
-            self.assertEqual(self.parse(["--port", "9322"]).port, 9322)
-
-    def test_the_documented_default_still_applies(self) -> None:
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("AREADAY_WORKBENCH_PORT", None)
+    def test_an_environment_variable_cannot_set_the_port(self) -> None:
+        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "9411"}, clear=False):
             self.assertEqual(self.parse([]).port, 8765)
 
-    def test_an_unusable_override_stops_the_command(self) -> None:
-        with patch.dict(os.environ, {"AREADAY_WORKBENCH_PORT": "not-a-port"}):
-            with self.assertRaises(SystemExit) as raised:
-                with contextlib.redirect_stderr(io.StringIO()):
-                    self.parse([])
+    def test_an_unusable_port_stops_the_command(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.parse(["--port", "not-a-port"])
         self.assertEqual(raised.exception.code, 2)
 
 

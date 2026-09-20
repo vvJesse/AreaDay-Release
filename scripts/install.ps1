@@ -9,12 +9,12 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillDir = Split-Path -Parent $ScriptDir
 $RuntimeDir = if ($env:AREADAY_RUNTIME_DIR) { $env:AREADAY_RUNTIME_DIR } else { Join-Path $SkillDir ".runtime" }
 $VenvDir = if ($env:AREADAY_VENV_DIR) { $env:AREADAY_VENV_DIR } else { Join-Path $SkillDir ".venv" }
-$DataDir = if ($env:AREADAY_DATA_DIR) { $env:AREADAY_DATA_DIR } else { Join-Path $SkillDir "data" }
-$ModelDir = if ($env:AREADAY_MODEL_DIR) { $env:AREADAY_MODEL_DIR } else { Join-Path $DataDir "models\sentence-transformers" }
+$DataDir = Join-Path $SkillDir "data"
+$ModelDir = Join-Path $DataDir "models\sentence-transformers"
 $SetupScript = Join-Path $ScriptDir "setup_dependencies.py"
 $PortableRuntimeScript = Join-Path $ScriptDir "prepare_portable_runtime.py"
 $MigrationScript = Join-Path $ScriptDir "migrate_areaday_data.py"
-$OpenAlexConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { $DataDir }
+$OpenAlexConfigDir = $DataDir
 $OpenAlexConfig = Join-Path $OpenAlexConfigDir "credentials.ini"
 
 function Get-BundledRuntime {

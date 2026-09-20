@@ -6,7 +6,6 @@ import areaday_paths
 import configparser
 import hashlib
 import json
-import os
 import re
 import time
 import urllib.error
@@ -18,8 +17,6 @@ from typing import Any, Iterable
 
 
 OPENALEX_API = "https://api.openalex.org/works"
-CONFIG_DIR_VARIABLE = areaday_paths.CONFIG_DIR_VARIABLE
-OPENALEX_API_KEY_VARIABLE = "OPENALEX_API_KEY"
 ARXIV_ID_RE = re.compile(
     r"(?:arxiv(?:\.org/(?:abs|pdf)/|:)|10\.48550/arxiv\.)("
     r"(?:[a-z][a-z.\-]+/\d{7})|(?:\d{4}\.\d{4,5})"
@@ -59,9 +56,6 @@ def credentials_path() -> Path:
 
 def load_openalex_api_key() -> str:
     """Read the one AreaDay-owned OpenAlex configuration."""
-    environment_key = os.environ.get(OPENALEX_API_KEY_VARIABLE, "").strip()
-    if environment_key:
-        return accepted_api_key(environment_key, f"${OPENALEX_API_KEY_VARIABLE}")
     credentials = credentials_path()
     if not credentials.is_file():
         raise RuntimeError(

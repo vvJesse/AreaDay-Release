@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -18,8 +19,6 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import configure_openalex as configurator  # noqa: E402
 from areaday_core import (  # noqa: E402
-    CONFIG_DIR_VARIABLE,
-    OPENALEX_API_KEY_VARIABLE,
     credentials_path,
     load_openalex_api_key,
 )
@@ -30,10 +29,6 @@ class OpenAlexConfigurationTests(unittest.TestCase):
         self._temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self._temporary.cleanup)
         self.root = Path(self._temporary.name)
-        environment = patch.dict(os.environ, {}, clear=False)
-        environment.start()
-        self.addCleanup(environment.stop)
-        os.environ.pop(OPENALEX_API_KEY_VARIABLE, None)
 
     def write_configuration(self, value: str, directory: Path | None = None) -> Path:
         target = (directory or self.root) / "credentials.ini"
@@ -41,20 +36,9 @@ class OpenAlexConfigurationTests(unittest.TestCase):
         target.write_text(f"[openalex]\napi_key = {value}\n", encoding="utf-8")
         return target
 
-    def load(self, directory: Path | None = None, environment: str | None = None) -> str:
-        def configured_path() -> Path:
-            root = os.environ.get(CONFIG_DIR_VARIABLE, "").strip()
-            return (Path(root) if root else self.root) / "credentials.ini"
-
-        with patch.dict(os.environ, {}, clear=False), patch(
-            "areaday_core.credentials_path", configured_path
-        ):
-            os.environ.pop(CONFIG_DIR_VARIABLE, None)
-            os.environ.pop(OPENALEX_API_KEY_VARIABLE, None)
-            if directory is not None:
-                os.environ[CONFIG_DIR_VARIABLE] = str(directory)
-            if environment is not None:
-                os.environ[OPENALEX_API_KEY_VARIABLE] = environment
+    def load(self, directory: Path | None = None) -> str:
+        target = (directory or self.root) / "credentials.ini"
+        with patch("areaday_core.credentials_path", lambda: target):
             return load_openalex_api_key()
 
     def test_a_personal_key_is_returned(self) -> None:
@@ -84,37 +68,20 @@ class OpenAlexConfigurationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.load()
 
-    def test_the_configuration_directory_can_be_relocated(self) -> None:
-        relocated = self.root / "relocated"
-        self.write_configuration("relocatedkey123456", relocated)
-        self.assertEqual(self.load(relocated), "relocatedkey123456")
-        with patch.dict(os.environ, {CONFIG_DIR_VARIABLE: str(relocated)}, clear=False):
-            self.assertEqual(credentials_path(), relocated / "credentials.ini")
+    def test_the_key_file_cannot_be_moved_by_the_environment(self) -> None:
+        with patch.dict(os.environ, {"AREADAY_CONFIG_DIR": "/tmp/from-env"}, clear=False):
+            self.assertEqual(credentials_path(), SKILL_DIR / "data" / "credentials.ini")
 
-    def test_the_default_configuration_directory_is_the_skill_data_directory(self) -> None:
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop(CONFIG_DIR_VARIABLE, None)
-            self.assertEqual(
-                credentials_path(), SKILL_DIR / "data" / "credentials.ini"
-            )
-
-    def test_a_key_in_the_environment_takes_precedence(self) -> None:
+    def test_a_key_in_the_environment_is_ignored(self) -> None:
         self.write_configuration("abcdefghijklmnop")
-        self.assertEqual(self.load(environment="environmentkey12345"), "environmentkey12345")
+        with patch.dict(os.environ, {"OPENALEX_API_KEY": "environmentkey12345"}, clear=False):
+            self.assertEqual(self.load(), "abcdefghijklmnop")
 
-    def test_an_empty_environment_value_falls_back_to_the_file(self) -> None:
-        self.write_configuration("abcdefghijklmnop")
-        self.assertEqual(self.load(environment="   "), "abcdefghijklmnop")
-
-    def test_the_anonymous_environment_value_is_rejected(self) -> None:
-        with self.assertRaises(RuntimeError) as context:
-            self.load(environment="anonymous")
-        self.assertIn("no longer supports anonymous OpenAlex access", str(context.exception))
-        self.assertIn(OPENALEX_API_KEY_VARIABLE, str(context.exception))
-
-    def test_a_malformed_environment_value_is_rejected(self) -> None:
-        with self.assertRaises(ValueError):
-            self.load(environment="short")
+    def test_the_environment_cannot_replace_a_missing_key(self) -> None:
+        with patch.dict(os.environ, {"OPENALEX_API_KEY": "environmentkey12345"}, clear=False):
+            with self.assertRaises(RuntimeError) as context:
+                self.load()
+        self.assertIn("needs a personal OpenAlex API key", str(context.exception))
 
 
 class ConfigureOpenAlexScriptTests(unittest.TestCase):
@@ -124,16 +91,29 @@ class ConfigureOpenAlexScriptTests(unittest.TestCase):
         self._temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self._temporary.cleanup)
         self.root = Path(self._temporary.name)
-        self.path = self.root / "config" / "credentials.ini"
+        # The script runs in a copy of the Skill so the key file it writes lands
+        # inside that copy instead of the checked-out Skill this test lives in.
+        self.skill = self.root / "AreaDay"
+        (self.skill / "scripts").mkdir(parents=True)
+        (self.skill / "assets").mkdir()
+        self.script = self.skill / "scripts" / "configure_openalex.py"
+        shutil.copy2(CONFIGURATOR, self.script)
+        shutil.copy2(
+            SCRIPTS_DIR / "areaday_paths.py", self.skill / "scripts" / "areaday_paths.py"
+        )
+        shutil.copy2(
+            SKILL_DIR / "assets" / "openalex-help.html",
+            self.skill / "assets" / "openalex-help.html",
+        )
+        self.path = (self.skill / "data" / "credentials.ini").resolve()
 
     def run_script(self, *arguments: str, payload: str = "") -> subprocess.CompletedProcess:
         environment = {
             "PATH": os.environ.get("PATH", ""),
             "HOME": str(self.root),
-            CONFIG_DIR_VARIABLE: str(self.path.parent),
         }
         return subprocess.run(
-            [sys.executable, str(CONFIGURATOR), *arguments],
+            [sys.executable, str(self.script), *arguments],
             input=payload,
             capture_output=True,
             text=True,
@@ -141,7 +121,7 @@ class ConfigureOpenAlexScriptTests(unittest.TestCase):
             env=environment,
         )
 
-    def test_the_printed_path_follows_the_configuration_directory(self) -> None:
+    def test_the_printed_path_is_inside_the_skill_data_directory(self) -> None:
         result = self.run_script("--print-path")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), str(self.path))
@@ -175,7 +155,6 @@ class ConfigureOpenAlexScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode, 4, result.stdout)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["status"], "missing")
-        self.assertEqual(payload["config_dir_variable"], CONFIG_DIR_VARIABLE)
         self.assertEqual(payload["credentials_path"], str(self.path))
 
 
@@ -209,10 +188,9 @@ class ConfigureOpenAlexHelpersTests(unittest.TestCase):
         self.assertNotIn("old", text)
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
-    def test_the_configuration_directory_precedence(self) -> None:
-        with patch.dict(os.environ, {CONFIG_DIR_VARIABLE: "/tmp/from-env"}, clear=False):
-            self.assertEqual(configurator.resolve_config_dir(None), Path("/tmp/from-env"))
-        self.assertEqual(configurator.resolve_config_dir(Path("/tmp/explicit")), Path("/tmp/explicit"))
+    def test_no_environment_variable_moves_the_configuration_file(self) -> None:
+        with patch.dict(os.environ, {"AREADAY_CONFIG_DIR": "/tmp/from-env"}, clear=False):
+            self.assertEqual(configurator.config_dir(), SKILL_DIR / "data")
 
     def test_the_key_problem_explains_what_to_fix(self) -> None:
         self.assertIn("No key was entered", configurator.key_problem(""))

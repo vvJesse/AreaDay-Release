@@ -19,13 +19,13 @@ from domain_registry import default_registry_path  # noqa: E402
 
 
 class AreaDayDataDirectoryTests(unittest.TestCase):
-    def test_registry_uses_stable_areaday_data_location(self) -> None:
+    def test_registry_ignores_a_relocation_variable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             selected = Path(temporary) / "AreaDayData"
             with patch.dict(os.environ, {"AREADAY_DATA_DIR": str(selected)}):
                 self.assertEqual(
                     default_registry_path(),
-                    selected.resolve() / "real-domains.json",
+                    ROOT / "data" / "real-domains.json",
                 )
 
     def test_registry_defaults_inside_the_skill_without_an_override(self) -> None:

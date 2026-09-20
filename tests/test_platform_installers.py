@@ -20,15 +20,15 @@ class PlatformInstallerContractTests(unittest.TestCase):
         self.assertIn("base-python/bin/python3.12", script)
         self.assertIn("com.apple.quarantine", script)
         self.assertIn("prepare_portable_runtime.py", script)
-        self.assertIn('${AREADAY_CONFIG_DIR:-$DATA_DIR}/credentials.ini', script)
+        self.assertIn('OPENALEX_CONFIG="$DATA_DIR/credentials.ini"', script)
         self.assertIn("personal OpenAlex API key", script)
 
-    def test_macos_openalex_setup_honours_the_configuration_directory(self) -> None:
+    def test_macos_openalex_setup_writes_inside_the_skill(self) -> None:
         wrapper = (ROOT / "scripts" / "configure_openalex.sh").read_text(encoding="utf-8")
         configurator = (ROOT / "scripts" / "configure_openalex.py").read_text(encoding="utf-8")
         self.assertIn('exec "$PYTHON" "$SCRIPT_DIR/configure_openalex.py" "$@"', wrapper)
         self.assertNotIn("anonymous", wrapper.lower())
-        self.assertIn('CONFIG_DIR_VARIABLE = "AREADAY_CONFIG_DIR"', configurator)
+        self.assertIn("from areaday_paths import config_dir", configurator)
         self.assertIn("no longer supports anonymous OpenAlex access", configurator)
         self.assertNotIn("OpenAlex anonymous access selected", configurator)
 
@@ -45,27 +45,20 @@ class PlatformInstallerContractTests(unittest.TestCase):
         windows_config = (ROOT / "scripts" / "configure_openalex.ps1").read_text(
             encoding="utf-8"
         )
-        self.assertIn('DATA_DIR=${AREADAY_DATA_DIR:-"$SKILL_DIR/data"}', shell)
-        self.assertIn(
-            'MODEL_DIR=${AREADAY_MODEL_DIR:-"$DATA_DIR/models/sentence-transformers"}',
-            shell,
-        )
-        self.assertIn(
-            '$DataDir = if ($env:AREADAY_DATA_DIR) { $env:AREADAY_DATA_DIR } '
-            'else { Join-Path $SkillDir "data" }',
-            windows,
-        )
+        self.assertIn('DATA_DIR="$SKILL_DIR/data"', shell)
+        self.assertIn('MODEL_DIR="$DATA_DIR/models/sentence-transformers"', shell)
+        self.assertIn('$DataDir = Join-Path $SkillDir "data"', windows)
         self.assertIn('Join-Path $DataDir "models\\sentence-transformers"', windows)
-        self.assertIn(
-            '$OpenAlexConfigDir = if ($env:AREADAY_CONFIG_DIR) { '
-            '$env:AREADAY_CONFIG_DIR } else { $DataDir }',
-            windows,
-        )
-        self.assertIn(
-            '$ConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } '
-            'else { Join-Path $SkillDir "data" }',
-            windows_config,
-        )
+        self.assertIn("$OpenAlexConfigDir = $DataDir", windows)
+        self.assertIn('$ConfigDir = Join-Path $SkillDir "data"', windows_config)
+        for text in (shell, windows, windows_config):
+            for marker in (
+                "AREADAY_DATA_DIR",
+                "AREADAY_CONFIG_DIR",
+                "AREADAY_MODEL_DIR",
+                "OPENALEX_API_KEY",
+            ):
+                self.assertNotIn(marker, text)
         self.assertNotIn("$HOME/.areaday", shell)
         self.assertNotIn('Join-Path $HOME ".areaday"', windows + windows_config)
 

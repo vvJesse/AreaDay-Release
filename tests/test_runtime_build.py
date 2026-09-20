@@ -157,9 +157,9 @@ class RuntimeBuildContractTests(unittest.TestCase):
         np.testing.assert_allclose(np.linalg.norm(vectors, axis=1), [1.0, 1.0])
 
     def test_runtime_environment_disables_onnx_telemetry(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            environment = runtime_environment(Path(temporary))
+        environment = runtime_environment()
         self.assertEqual(environment["ORT_DISABLE_TELEMETRY"], "1")
+        self.assertNotIn("AREADAY_MODEL_DIR", environment)
 
     def test_frozen_runtime_inputs_and_two_runner_workflow_exist(self) -> None:
         self.assertTrue((ROOT / "uv.lock").is_file())

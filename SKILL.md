@@ -87,14 +87,14 @@ global learning state, the OpenAlex configuration file (`credentials.ini`) and
 the embedding model all live in this Skill's own `data/` directory, next to the
 installed runtime and virtual environment. Registered workspaces are written as
 well, and they may be anywhere on the filesystem. A host that can grant only one
-writable root therefore only has to grant this Skill directory.
-`AREADAY_DATA_DIR`, `AREADAY_MODEL_DIR` and `AREADAY_CONFIG_DIR` relocate each
-area independently.
+writable root therefore only has to grant this Skill directory. Nothing in the
+environment can move these files: that ``data/`` directory is the only place
+AreaDay reads them from.
 
 **Loopback for the workbench.** The launcher binds `127.0.0.1` on port 8765, or on
 a nearby fallback port, connects to that same local address to confirm the
 service is ready, and returns the URL for the host to open in the user's browser.
-`AREADAY_WORKBENCH_PORT` pins the preferred port when the sandbox allows only one.
+`--port` pins the preferred port when the sandbox allows only one.
 A sandbox that refuses local connections breaks that readiness check, not the
 page itself: the launcher then reports the refused bind as a permission
 restriction rather than as a busy port. Request local-binding and loopback access

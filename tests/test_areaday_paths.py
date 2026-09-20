@@ -14,17 +14,23 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 import areaday_paths  # noqa: E402
-from areaday_paths import (  # noqa: E402
-    CONFIG_DIR_VARIABLE,
-    CREDENTIALS_FILENAME,
-    DATA_DIR_VARIABLE,
-    MODEL_DIR_VARIABLE,
-    REGISTRY_FILENAME,
+from areaday_paths import CREDENTIALS_FILENAME, REGISTRY_FILENAME  # noqa: E402
+
+
+# Names AreaDay used to accept from the environment or the command line. The
+# Skill has exactly one place for every file it owns, so nothing here may be
+# read anywhere in the code any more.
+RETIRED_VARIABLES = (
+    "AREADAY_DATA_DIR",
+    "AREADAY_CONFIG_DIR",
+    "AREADAY_MODEL_DIR",
+    "AREADAY_WORKBENCH_PORT",
+    "OPENALEX_API_KEY",
 )
 
 
 class AreaDayPathTests(unittest.TestCase):
-    """Every file AreaDay owns lives inside the Skill unless the host says otherwise."""
+    """Every file AreaDay owns lives inside the Skill, and nowhere else."""
 
     def setUp(self) -> None:
         self._temporary = tempfile.TemporaryDirectory()
@@ -35,13 +41,6 @@ class AreaDayPathTests(unittest.TestCase):
         patcher = patch.object(areaday_paths, "SKILL_ROOT", self.skill)
         patcher.start()
         self.addCleanup(patcher.stop)
-        environment = patch.dict(os.environ, {}, clear=False)
-        environment.start()
-        self.addCleanup(environment.stop)
-        for variable in (DATA_DIR_VARIABLE, CONFIG_DIR_VARIABLE, MODEL_DIR_VARIABLE):
-            os.environ.pop(variable, None)
-
-    # -- defaults live inside the Skill ------------------------------------
 
     def test_the_registry_lives_in_the_skill_data_directory(self) -> None:
         self.assertEqual(areaday_paths.data_root(), self.skill / "data")
@@ -67,27 +66,28 @@ class AreaDayPathTests(unittest.TestCase):
             self.skill / "data" / "models" / "sentence-transformers",
         )
 
-    # -- environment overrides --------------------------------------------
-
-    def test_the_data_directory_can_be_relocated(self) -> None:
-        relocated = self.root / "elsewhere"
-        with patch.dict(os.environ, {DATA_DIR_VARIABLE: str(relocated)}):
-            self.assertEqual(areaday_paths.data_root(), relocated)
+    def test_no_environment_variable_moves_a_file(self) -> None:
+        elsewhere = self.root / "elsewhere"
+        configured = {name: str(elsewhere) for name in RETIRED_VARIABLES}
+        with patch.dict(os.environ, configured):
+            self.assertEqual(areaday_paths.data_root(), self.skill / "data")
             self.assertEqual(
-                areaday_paths.registry_path(), relocated / REGISTRY_FILENAME
+                areaday_paths.registry_path(),
+                self.skill / "data" / REGISTRY_FILENAME,
             )
-
-    def test_the_configuration_directory_can_be_relocated(self) -> None:
-        relocated = self.root / "config"
-        with patch.dict(os.environ, {CONFIG_DIR_VARIABLE: str(relocated)}):
             self.assertEqual(
-                areaday_paths.credentials_path(), relocated / CREDENTIALS_FILENAME
+                areaday_paths.global_learning_path(),
+                self.skill / "data" / "global-learning.sqlite3",
             )
-
-    def test_the_model_directory_can_be_relocated(self) -> None:
-        relocated = self.root / "models"
-        with patch.dict(os.environ, {MODEL_DIR_VARIABLE: str(relocated)}):
-            self.assertEqual(areaday_paths.model_root(), relocated)
+            self.assertEqual(
+                areaday_paths.credentials_path(),
+                self.skill / "data" / CREDENTIALS_FILENAME,
+            )
+            self.assertEqual(areaday_paths.config_dir(), self.skill / "data")
+            self.assertEqual(
+                areaday_paths.model_root(),
+                self.skill / "data" / "models" / "sentence-transformers",
+            )
 
 
 class HardCodedLocationTests(unittest.TestCase):
@@ -99,7 +99,23 @@ class HardCodedLocationTests(unittest.TestCase):
             if path.name == "areaday_paths.py":
                 continue
             text = path.read_text(encoding="utf-8")
-            for marker in ('Path.home() / ".areaday"', "~/.researchramp", "PATH.home() / \".areaday\""):
+            for marker in (
+                'Path.home() / ".areaday"',
+                "~/.researchramp",
+                'PATH.home() / ".areaday"',
+                "researchramp.sqlite3",
+            ):
+                if marker in text:
+                    offenders.append(f"{path.name}: {marker}")
+        self.assertEqual(offenders, [])
+
+    def test_no_module_reads_a_retired_variable(self) -> None:
+        offenders = []
+        for path in sorted((ROOT / "scripts").glob("*.py")):
+            if path.name == "areaday_paths.py":
+                continue
+            text = path.read_text(encoding="utf-8")
+            for marker in RETIRED_VARIABLES:
                 if marker in text:
                     offenders.append(f"{path.name}: {marker}")
         self.assertEqual(offenders, [])
@@ -115,6 +131,17 @@ class HardCodedLocationTests(unittest.TestCase):
             self.assertNotIn("$HOME/.areaday", text, name)
             self.assertNotIn('Join-Path $HOME ".areaday"', text, name)
             self.assertNotIn("researchramp", text.lower(), name)
+
+    def test_no_installer_reads_a_retired_variable(self) -> None:
+        for name in (
+            "install.sh",
+            "install.ps1",
+            "configure_openalex.sh",
+            "configure_openalex.ps1",
+        ):
+            text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+            for marker in RETIRED_VARIABLES:
+                self.assertNotIn(marker, text, f"{name}: {marker}")
 
     def test_the_skill_data_directory_is_never_committed(self) -> None:
         ignore_rules = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()

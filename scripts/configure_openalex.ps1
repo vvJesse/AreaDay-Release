@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillDir = Split-Path -Parent $ScriptDir
 $HelpPath = Join-Path $SkillDir "assets\openalex-help.html"
-$ConfigDir = if ($env:AREADAY_CONFIG_DIR) { $env:AREADAY_CONFIG_DIR } else { Join-Path $SkillDir "data" }
+$ConfigDir = Join-Path $SkillDir "data"
 $ConfigPath = Join-Path $ConfigDir "credentials.ini"
 $Utf8 = [Text.UTF8Encoding]::new($false)
 

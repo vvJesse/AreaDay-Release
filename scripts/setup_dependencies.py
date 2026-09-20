@@ -39,7 +39,7 @@ def venv_python(venv_dir: Path, platform: str = sys.platform) -> Path:
     return venv_dir / "bin" / "python"
 
 
-def runtime_environment(model_dir: Path) -> dict[str, str]:
+def runtime_environment() -> dict[str, str]:
     environment = os.environ.copy()
     environment.setdefault("TOKENIZERS_PARALLELISM", "false")
     environment["ORT_DISABLE_TELEMETRY"] = "1"
@@ -47,7 +47,6 @@ def runtime_environment(model_dir: Path) -> dict[str, str]:
     environment.setdefault("HF_HUB_ETAG_TIMEOUT", "30")
     environment.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
     environment.setdefault("HF_HUB_VERBOSITY", "error")
-    environment["AREADAY_MODEL_DIR"] = str(model_dir)
     return environment
 
 
@@ -331,7 +330,7 @@ def verify(
         else "Verifying the complete NLP runtime without model downloads...",
         flush=True,
     )
-    environment = runtime_environment(model_dir)
+    environment = runtime_environment()
     if endpoint:
         environment["AREADAY_MODEL_ENDPOINT"] = endpoint
         if endpoint == CHINA_HF_MIRROR:
@@ -424,7 +423,7 @@ def install(venv_dir: Path, model_dir: Path) -> None:
         raise SystemExit(
             f"Python 3.10+ is required; this installer is running under {sys.version.split()[0]}."
         )
-    environment = runtime_environment(model_dir)
+    environment = runtime_environment()
     if not venv_python(venv_dir).exists():
         create_environment(venv_dir, environment)
     if python_version(venv_python(venv_dir)) < MINIMUM_PYTHON:

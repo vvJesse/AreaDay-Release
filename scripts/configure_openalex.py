@@ -21,8 +21,6 @@ Non-interactive variants, for agents, sandboxes and automated setup:
     python3 scripts/configure_openalex.py --print-path   # where the key is read from
     python3 scripts/configure_openalex.py --paste        # type the key in the terminal
 
-The environment variable ``OPENALEX_API_KEY`` overrides the file everywhere.
-
 Exit codes: 0 the key is usable (or the file is ready to edit), 2 the key was
 rejected, 3 OpenAlex was unreachable, 4 no key is configured yet, 1 usage or
 filesystem problem.
@@ -46,8 +44,6 @@ from areaday_paths import config_dir
 
 SETTINGS_URL = "https://openalex.org/settings/api"
 VERIFY_URL = "https://api.openalex.org/rate-limit"
-CONFIG_DIR_VARIABLE = "AREADAY_CONFIG_DIR"
-ENV_KEY_VARIABLE = "OPENALEX_API_KEY"
 CREDENTIALS_FILENAME = "credentials.ini"
 HELP_PAGE = Path("assets/openalex-help.html")
 SECTION_NAME = "openalex"
@@ -92,12 +88,6 @@ TEMPLATE = f"""\
 
 class ConfigurationError(Exception):
     """A problem the user has to fix before the key can be stored."""
-
-
-def resolve_config_dir(explicit: Path | None) -> Path:
-    if explicit is not None:
-        return Path(explicit).expanduser()
-    return config_dir()
 
 
 def read_key(path: Path) -> str:
@@ -306,11 +296,6 @@ def open_in_editor(path: Path) -> str:
 
 def describe_source(path: Path, saved: str) -> tuple[str, str]:
     """Return (source, key) for the key AreaDay would use right now."""
-    from_environment = os.environ.get(ENV_KEY_VARIABLE, "").strip()
-    if from_environment:
-        if from_environment.lower() == "anonymous":
-            return ENV_KEY_VARIABLE, ""
-        return ENV_KEY_VARIABLE, from_environment
     return str(path), saved
 
 
@@ -320,7 +305,6 @@ def report(args, status: str, message: str, path: Path, source: str, extra: dict
             "status": status,
             "message": message,
             "credentials_path": str(path),
-            "config_dir_variable": CONFIG_DIR_VARIABLE,
             "key_source": source,
         }
         if extra:
@@ -468,12 +452,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="type the key into this terminal instead of editing the file",
     )
     parser.add_argument(
-        "--config-dir",
-        type=Path,
-        help=f"directory holding {CREDENTIALS_FILENAME} "
-        f"(default: ${CONFIG_DIR_VARIABLE} or this Skill's data directory)",
-    )
-    parser.add_argument(
         "--timeout", type=float, default=20.0, help="seconds to wait for OpenAlex (default: 20)"
     )
     parser.add_argument("--no-open", action="store_true", help="do not launch a text editor")
@@ -490,7 +468,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     skill_dir = Path(__file__).resolve().parent.parent
-    path = resolve_config_dir(args.config_dir) / CREDENTIALS_FILENAME
+    path = config_dir() / CREDENTIALS_FILENAME
 
     if args.print_path:
         print(path)
