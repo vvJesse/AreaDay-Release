@@ -199,5 +199,104 @@ class ConfigureOpenAlexHelpersTests(unittest.TestCase):
         self.assertEqual(configurator.key_problem("abcdefghijklmnop"), "")
 
 
+class _Editor:
+    """Stand-in for the launcher subprocess."""
+
+    def __init__(self, returncode: int | None = None, stays_open: bool = False) -> None:
+        self.returncode = returncode
+        self.stays_open = stays_open
+
+    def wait(self, timeout: float | None = None) -> int | None:
+        if self.stays_open:
+            raise subprocess.TimeoutExpired(cmd="open", timeout=timeout or 0)
+        return self.returncode
+
+
+class EditorLaunchTests(unittest.TestCase):
+    """A launcher that did not open anything must never be reported as success."""
+
+    def patch_launchers(self, outcomes: list[object]) -> list[list[str]]:
+        launched: list[list[str]] = []
+
+        def fake_popen(command, **_kwargs):
+            outcome = outcomes[len(launched)]
+            launched.append(command)
+            if isinstance(outcome, OSError):
+                raise outcome
+            return outcome
+
+        patcher = patch("configure_openalex.subprocess.Popen", side_effect=fake_popen)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        platform = patch.object(configurator.sys, "platform", "darwin")
+        platform.start()
+        self.addCleanup(platform.stop)
+        return launched
+
+    def test_the_first_launcher_that_works_is_reported(self) -> None:
+        launched = self.patch_launchers([_Editor(returncode=0)])
+        self.assertEqual(
+            configurator.open_in_editor(Path("/tmp/credentials.ini")), "open -e"
+        )
+        self.assertEqual(launched, [["open", "-e", "/tmp/credentials.ini"]])
+
+    def test_a_launcher_that_fails_falls_through_to_the_next_one(self) -> None:
+        launched = self.patch_launchers([_Editor(returncode=1), _Editor(returncode=0)])
+        self.assertEqual(
+            configurator.open_in_editor(Path("/tmp/credentials.ini")), "open -t"
+        )
+        self.assertEqual(
+            launched,
+            [["open", "-e", "/tmp/credentials.ini"], ["open", "-t", "/tmp/credentials.ini"]],
+        )
+
+    def test_a_launcher_that_cannot_start_is_skipped(self) -> None:
+        launched = self.patch_launchers([OSError("no such file"), _Editor(returncode=0)])
+        self.assertEqual(configurator.open_in_editor(Path("/tmp/k.ini")), "open -t")
+        self.assertEqual(len(launched), 2)
+
+    def test_an_editor_that_stays_open_counts_as_opened(self) -> None:
+        self.patch_launchers([_Editor(stays_open=True)])
+        self.assertEqual(configurator.open_in_editor(Path("/tmp/k.ini")), "open -e")
+
+    def test_nothing_opened_is_reported_as_nothing(self) -> None:
+        launched = self.patch_launchers(
+            [_Editor(returncode=1), _Editor(returncode=1), _Editor(returncode=1)]
+        )
+        self.assertEqual(configurator.open_in_editor(Path("/tmp/k.ini")), "")
+        self.assertEqual(len(launched), 3)
+
+    def test_the_preferred_editor_is_used_first_off_macos(self) -> None:
+        launched: list[list[str]] = []
+
+        def fake_popen(command, **_kwargs):
+            launched.append(command)
+            return _Editor(returncode=0)
+
+        with patch("configure_openalex.subprocess.Popen", side_effect=fake_popen), patch.object(
+            configurator.sys, "platform", "linux"
+        ), patch.dict(os.environ, {"EDITOR": "myeditor --wait"}, clear=False):
+            self.assertEqual(
+                configurator.open_in_editor(Path("/tmp/k.ini")), "myeditor --wait"
+            )
+        self.assertEqual(launched, [["myeditor", "--wait", "/tmp/k.ini"]])
+
+    def test_a_missing_editor_falls_back_to_the_desktop_opener(self) -> None:
+        launched: list[list[str]] = []
+
+        def fake_popen(command, **_kwargs):
+            launched.append(command)
+            return _Editor(returncode=0)
+
+        environment = dict(os.environ)
+        environment.pop("EDITOR", None)
+        environment.pop("VISUAL", None)
+        with patch("configure_openalex.subprocess.Popen", side_effect=fake_popen), patch.object(
+            configurator.sys, "platform", "linux"
+        ), patch.dict(os.environ, environment, clear=True):
+            self.assertEqual(configurator.open_in_editor(Path("/tmp/k.ini")), "xdg-open")
+        self.assertEqual(launched, [["xdg-open", "/tmp/k.ini"]])
+
+
 if __name__ == "__main__":
     unittest.main()

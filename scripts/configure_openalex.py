@@ -33,6 +33,7 @@ import getpass
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -48,6 +49,7 @@ CREDENTIALS_FILENAME = "credentials.ini"
 HELP_PAGE = Path("assets/openalex-help.html")
 SECTION_NAME = "openalex"
 KEY_FIELD = "api_key"
+EDITOR_LAUNCH_TIMEOUT_SECONDS = 8
 
 KEY_PATTERN = re.compile(r"\A[A-Za-z0-9_-]{12,200}\Z")
 KEY_LINE = re.compile(r"\A[ \t]*api_key[ \t]*=(?P<value>.*)\Z")
@@ -268,30 +270,66 @@ def prepare_for_editing(path: Path) -> bool:
     return changed
 
 
-def open_in_editor(path: Path) -> str:
-    """Best effort: hand the file to the user's own editor. Never blocks."""
+def editor_launchers(path: Path) -> list[tuple[str, list[str]]]:
+    """Return (label, command) pairs that hand the file to a text editor.
+
+    The platform's most reliable launcher comes first: ``open -e`` can fail
+    inside a sandbox without raising, so the fallbacks matter instead of relying
+    on a single command.
+    """
+    target = str(path)
     if sys.platform == "darwin":
-        command = ["open", "-e", str(path)]
-    elif os.name == "nt":  # pragma: no cover - exercised on Windows only
-        command = [
-            "powershell.exe",
-            "-NoProfile",
-            "-Command",
-            f"Invoke-Item -LiteralPath '{path}'",
+        return [
+            ("open -e", ["open", "-e", target]),
+            ("open -t", ["open", "-t", target]),
+            ("open", ["open", target]),
         ]
-    else:
-        editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
-        command = [editor, str(path)] if editor else ["xdg-open", str(path)]
-    try:
-        subprocess.Popen(
-            command,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-        )
-    except OSError:
-        return ""
-    return " ".join(command[:1])
+    if os.name == "nt":  # pragma: no cover - exercised on Windows only
+        return [
+            (
+                "Invoke-Item",
+                [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-Command",
+                    f"Invoke-Item -LiteralPath '{path}'",
+                ],
+            ),
+        ]
+    launchers: list[tuple[str, list[str]]] = []
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if editor:
+        launchers.append((editor, [*shlex.split(editor), target]))
+    launchers.append(("xdg-open", ["xdg-open", target]))
+    return launchers
+
+
+def open_in_editor(path: Path) -> str:
+    """Hand the file to the user's editor and report only a launch that worked.
+
+    A launcher that exits non-zero did not open anything, so the next one is
+    tried; a launcher still running when the timeout expires counts as success,
+    because that is what an editor that stays in the foreground looks like.  An
+    empty return value means nothing opened, and the caller then prints the
+    manual instructions instead of claiming the file was opened.
+    """
+    for label, command in editor_launchers(path):
+        try:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+            )
+        except OSError:
+            continue
+        try:
+            returncode = process.wait(timeout=EDITOR_LAUNCH_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            return label
+        if returncode == 0:
+            return label
+    return ""
 
 
 def describe_source(path: Path, saved: str) -> tuple[str, str]:
