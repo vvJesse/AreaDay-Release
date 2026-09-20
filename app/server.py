@@ -325,10 +325,11 @@ class AppRuntime:
     def _with_vocabulary_card_detail(
         cls, context: DomainContext, raw_word: dict[str, Any]
     ) -> dict[str, Any]:
-        """Attach the reviewed spelling, gloss, and example to a calibration word.
+        """Attach the reviewed spelling, gloss, and example to the question word.
 
-        The card front stays a recall prompt: the page keeps this detail behind a
-        collapsed 显示答案 toggle, so the reader sees it only when they ask for it.
+        Only the calibration question gets this detail, and the page keeps it
+        behind a collapsed 显示答案 toggle: the reader sees it when they ask for it.
+        The boundary lists in the results view stay plain word inventories.
         """
 
         word = dict(raw_word)
@@ -356,11 +357,8 @@ class AppRuntime:
         if not calibration.get("complete"):
             return calibration
         result = dict(calibration["result"])
-        for key in ("known_boundary", "remaining_boundary"):
-            result[key] = [
-                self._with_vocabulary_card_detail(context, raw_word)
-                for raw_word in result.get(key) or []
-            ]
+        # The boundary lists keep their plain words: the gloss and example belong to
+        # the calibration question, not to the results inventory.
         mastery = self.mastery(context)
         if mastery is not None:
             result["mastery"] = mastery

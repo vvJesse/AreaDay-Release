@@ -221,6 +221,7 @@ function showView(name, { updateHash = true } = {}) {
 }
 
 function renderWordList(elementId, words) {
+  // A plain inventory of words: gloss and example belong to the question card only.
   const element = byId(elementId);
   element.replaceChildren();
   for (const word of words) {
@@ -230,20 +231,6 @@ function renderWordList(elementId, words) {
     chip.className = "word-chip";
     chip.textContent = word.display_form || word.lemma;
     entry.appendChild(chip);
-    const gloss = String(word.meaning_zh || word.meaning_en || "").trim();
-    if (gloss) {
-      const glossLine = document.createElement("p");
-      glossLine.className = "word-gloss";
-      glossLine.textContent = gloss;
-      entry.appendChild(glossLine);
-    }
-    const example = String(word.example || "").trim();
-    if (example) {
-      const exampleLine = document.createElement("p");
-      exampleLine.className = "word-example";
-      exampleLine.textContent = example;
-      entry.appendChild(exampleLine);
-    }
     element.appendChild(entry);
   }
 }

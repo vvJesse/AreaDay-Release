@@ -189,7 +189,7 @@ class CalibrationCardDetailTests(unittest.TestCase):
         )
         self.assertEqual(word["example"], "We train a large model on domain text.")
 
-    def test_the_boundary_lists_carry_the_same_detail(self) -> None:
+    def test_the_boundary_lists_stay_plain_word_inventories(self) -> None:
         store = FakeContinuousStore(
             {
                 ("model", "noun"): CARD,
@@ -207,11 +207,9 @@ class CalibrationCardDetailTests(unittest.TestCase):
 
         known = calibration["result"]["known_boundary"][0]
         remaining = calibration["result"]["remaining_boundary"][0]
-        self.assertEqual(known["meaning_zh"], "n. 模型, 模范, 模特儿")
-        self.assertEqual(known["example"], "We train a large model on domain text.")
-        self.assertEqual(remaining["meaning_zh"], "n. 目录中缺词")
+        self.assertEqual(known, {"lemma": "model", "part_of_speech": "noun"})
         self.assertEqual(
-            remaining["example"], "An unknownword appears in this sentence."
+            remaining, {"lemma": "unknownword", "part_of_speech": "noun"}
         )
 
     def test_a_word_missing_from_the_catalog_is_left_untouched(self) -> None:
@@ -259,11 +257,11 @@ class CardDetailUiTests(unittest.TestCase):
         self.assertIn("block.open = false;", self.script)
         self.assertIn("block.hidden = !hasDetail;", self.script)
 
-    def test_the_boundary_lists_render_the_gloss_and_example(self) -> None:
-        self.assertIn('glossLine.className = "word-gloss";', self.script)
-        self.assertIn('exampleLine.className = "word-example";', self.script)
-        self.assertIn(".word-gloss {", self.styles)
-        self.assertIn(".word-example {", self.styles)
+    def test_the_boundary_lists_stay_plain(self) -> None:
+        self.assertNotIn("word-gloss", self.script)
+        self.assertNotIn("word-example", self.script)
+        self.assertNotIn("word-gloss", self.styles)
+        self.assertNotIn("word-example", self.styles)
 
 
 if __name__ == "__main__":
