@@ -369,7 +369,7 @@ function renderCalibration(calibration) {
   renderWordList("knownBoundary", calibration.result.known_boundary);
   renderWordList("remainingBoundary", calibration.result.remaining_boundary);
   const exportLink = document.querySelector(".download");
-  exportLink.href = domainUrl("/api/export.tsv", currentDomainId);
+  exportLink.href = domainUrl("/api/export.xlsx", currentDomainId);
   return true;
 }
 
