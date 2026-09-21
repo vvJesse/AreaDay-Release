@@ -14,7 +14,8 @@ Responses are stored in
 `<confirmed-corpus-directory>/analysis/vocabulary-calibration-session.json`.
 After answer 30, the local session automatically writes
 `analysis/vocabulary-calibration-result.json` and
-`analysis/personalized-vocabulary.tsv`; the page also offers the TSV download.
+`analysis/personalized-vocabulary.tsv`; the page also offers the same vocabulary
+as a spreadsheet download named `personalized-vocabulary.xlsx`.
 Once these three local files are complete and loadable, reopening the result is
 served from them. An unfinished calibration resumes from the saved state; if the
 saved state or the completed result cannot be loaded, or if the underlying

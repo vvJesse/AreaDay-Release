@@ -40,6 +40,12 @@ from domain_registry import (  # noqa: E402
     validate_completed_workspace,
     validate_corpus_launch_workspace,
 )
+from personalized_export import (  # noqa: E402
+    CONTENT_TYPE as PERSONALIZED_EXPORT_CONTENT_TYPE,
+    DOWNLOAD_FILENAME as PERSONALIZED_EXPORT_FILENAME,
+    build_personalized_workbook,
+    read_export_rows,
+)
 from vocabulary_calibration import (  # noqa: E402
     CalibrationError,
     InvalidCalibrationData,
@@ -304,6 +310,17 @@ class AppRuntime:
             store.learning_store.mastered_word_forms()
         )
 
+    @classmethod
+    def catalog_card(
+        cls, context: DomainContext, lemma: str, part_of_speech: str = ""
+    ) -> dict[str, Any] | None:
+        """Return this word's reviewed card, or None when the corpus has no card."""
+
+        return cls._catalog_card(
+            context,
+            {"lemma": lemma, "part_of_speech": part_of_speech},
+        )
+
     @staticmethod
     def _catalog_card(
         context: DomainContext, raw_word: dict[str, Any]
@@ -325,10 +342,11 @@ class AppRuntime:
     def _with_vocabulary_card_detail(
         cls, context: DomainContext, raw_word: dict[str, Any]
     ) -> dict[str, Any]:
-        """Attach the reviewed spelling, gloss, and example to a calibration word.
+        """Attach the reviewed spelling, gloss, and example to the question word.
 
-        The card front stays a recall prompt, so the page reveals this detail only
-        after the reader has answered.
+        Only the calibration question gets this detail, and the page keeps it
+        behind a collapsed 显示答案 toggle: the reader sees it when they ask for it.
+        The boundary lists in the results view stay plain word inventories.
         """
 
         word = dict(raw_word)
@@ -356,11 +374,8 @@ class AppRuntime:
         if not calibration.get("complete"):
             return calibration
         result = dict(calibration["result"])
-        for key in ("known_boundary", "remaining_boundary"):
-            result[key] = [
-                self._with_vocabulary_card_detail(context, raw_word)
-                for raw_word in result.get(key) or []
-            ]
+        # The boundary lists keep their plain words: the gloss and example belong to
+        # the calibration question, not to the results inventory.
         mastery = self.mastery(context)
         if mastery is not None:
             result["mastery"] = mastery
@@ -437,11 +452,19 @@ class AppHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         return
 
-    def _send_bytes(self, payload: bytes, content_type: str, status: int = HTTPStatus.OK) -> None:
+    def _send_bytes(
+        self,
+        payload: bytes,
+        content_type: str,
+        status: int = HTTPStatus.OK,
+        filename: str = "",
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.end_headers()
         self.wfile.write(payload)
 
@@ -591,6 +614,20 @@ class AppHandler(BaseHTTPRequestHandler):
                 self._send_bytes(
                     context.session.persisted_export_tsv().encode("utf-8"),
                     "text/tab-separated-values; charset=utf-8",
+                )
+                return
+            if path == "/api/export.xlsx":
+                context = self._context(parsed)
+                rows = read_export_rows(context.session.persisted_export_tsv())
+                self._send_bytes(
+                    build_personalized_workbook(
+                        rows,
+                        lambda lemma, part_of_speech: self.runtime.catalog_card(
+                            context, lemma, part_of_speech
+                        ),
+                    ),
+                    PERSONALIZED_EXPORT_CONTENT_TYPE,
+                    filename=PERSONALIZED_EXPORT_FILENAME,
                 )
                 return
         except (KeyError, ValueError, TypeError) as error:

@@ -189,7 +189,7 @@ class CalibrationCardDetailTests(unittest.TestCase):
         )
         self.assertEqual(word["example"], "We train a large model on domain text.")
 
-    def test_the_boundary_lists_carry_the_same_detail(self) -> None:
+    def test_the_boundary_lists_stay_plain_word_inventories(self) -> None:
         store = FakeContinuousStore(
             {
                 ("model", "noun"): CARD,
@@ -207,11 +207,9 @@ class CalibrationCardDetailTests(unittest.TestCase):
 
         known = calibration["result"]["known_boundary"][0]
         remaining = calibration["result"]["remaining_boundary"][0]
-        self.assertEqual(known["meaning_zh"], "n. 模型, 模范, 模特儿")
-        self.assertEqual(known["example"], "We train a large model on domain text.")
-        self.assertEqual(remaining["meaning_zh"], "n. 目录中缺词")
+        self.assertEqual(known, {"lemma": "model", "part_of_speech": "noun"})
         self.assertEqual(
-            remaining["example"], "An unknownword appears in this sentence."
+            remaining, {"lemma": "unknownword", "part_of_speech": "noun"}
         )
 
     def test_a_word_missing_from_the_catalog_is_left_untouched(self) -> None:
@@ -236,21 +234,37 @@ class CardDetailUiTests(unittest.TestCase):
         self.assertIn('setText("word", calibration.word.display_form || calibration.word.lemma);', self.script)
         self.assertNotIn('setText("word", calibration.word.meaning_zh', self.script)
 
-    def test_the_answered_word_gets_its_gloss_and_example_on_the_card(self) -> None:
+    def test_the_current_word_gets_its_gloss_and_example_behind_a_toggle(self) -> None:
         self.assertIn('id="answerDetail"', self.page)
         self.assertIn('id="answerDetailMeaningZh"', self.page)
         self.assertIn('id="answerDetailExample"', self.page)
+        self.assertIn("显示答案", self.page)
         self.assertIn("function renderAnswerDetail(", self.script)
-        self.assertIn(
-            "renderAnswerDetail(complete ? null : answeredCard, response);", self.script
-        )
+        self.assertIn("renderAnswerDetail(calibration.word);", self.script)
         self.assertIn(".answer-detail {", self.styles)
+        self.assertIn(".answer-detail-toggle {", self.styles)
 
-    def test_the_boundary_lists_render_the_gloss_and_example(self) -> None:
-        self.assertIn('glossLine.className = "word-gloss";', self.script)
-        self.assertIn('exampleLine.className = "word-example";', self.script)
-        self.assertIn(".word-gloss {", self.styles)
-        self.assertIn(".word-example {", self.styles)
+    def test_the_answer_never_belongs_to_the_word_before_it(self) -> None:
+        self.assertNotIn("上一个词", self.page)
+        self.assertNotIn("上一个词", self.script)
+        self.assertNotIn("answerDetailWord", self.page)
+        self.assertNotIn("answeredCard", self.script)
+        self.assertNotIn("answerLabels", self.script)
+
+    def test_every_question_starts_with_its_answer_collapsed(self) -> None:
+        self.assertIn('class="answer-detail" hidden', self.page)
+        self.assertIn("<summary id=\"answerDetailToggle\"", self.page)
+        self.assertIn("block.open = false;", self.script)
+        self.assertIn("block.hidden = !hasDetail;", self.script)
+
+    def test_the_boundary_lists_stay_plain(self) -> None:
+        self.assertNotIn("word-gloss", self.script)
+        self.assertNotIn("word-example", self.script)
+        self.assertNotIn("word-gloss", self.styles)
+        self.assertNotIn("word-example", self.styles)
+        self.assertIn(".word-list { display: flex; flex-wrap: wrap;", self.styles)
+        self.assertNotIn("word-entry", self.script)
+        self.assertNotIn("word-entry", self.styles)
 
 
 if __name__ == "__main__":
