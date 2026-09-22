@@ -130,6 +130,24 @@ class OpenAlexCacheTests(unittest.TestCase):
                     payload,
                 )
 
+    def test_cursor_is_sent_instead_of_page_and_has_its_own_cache_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            client = OpenAlexClient(Path(temporary))
+            payload = response_payload("W-cursor")
+            with patch(
+                "areaday_core.urllib.request.urlopen",
+                side_effect=lambda *args, **kwargs: JsonResponse(payload),
+            ) as urlopen:
+                client.search("paged query", per_page=100, cursor="*")
+                client.search("paged query", per_page=100, cursor="next-token")
+
+            self.assertEqual(urlopen.call_count, 2)
+            first_url = urlopen.call_args_list[0].args[0].full_url
+            second_url = urlopen.call_args_list[1].args[0].full_url
+            self.assertIn("cursor=%2A", first_url)
+            self.assertNotIn("&page=1", first_url)
+            self.assertIn("cursor=next-token", second_url)
+
 
 if __name__ == "__main__":
     unittest.main()

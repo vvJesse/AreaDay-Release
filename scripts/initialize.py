@@ -350,7 +350,11 @@ class InitializationController:
                 "strategy_id, providers, and the search_queries and/or "
                 "arxiv_search_queries needed by those providers. Include a retrieval_scope "
                 "override only when the newly selected provider needs taxonomy or category "
-                "information absent from the profile; then immediately resume."
+                "information absent from the profile. For each OpenAlex search query, "
+                "optionally set candidate_limit to exactly 50, 100, 150, or 200; the "
+                "default is 100, while 50 is appropriate for lower-value queries and "
+                "150/200 should be reserved for especially relevant queries. Explain "
+                "non-default choices in the strategy output. Then immediately resume."
             ),
         )
 

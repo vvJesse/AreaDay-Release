@@ -30,6 +30,8 @@ from corpus_analysis import analyze_corpus
 from domain_registry import DomainRegistry, default_registry_path
 from research_profile import validate_profile
 from areaday_core import (
+    DEFAULT_OPENALEX_CANDIDATE_LIMIT,
+    OPENALEX_CANDIDATE_LIMITS,
     OpenAlexClient,
     candidate_from_openalex_work,
     load_openalex_api_key,
@@ -390,13 +392,86 @@ def _openalex_primary_filter(scope: dict[str, Any]) -> tuple[str, str, list[str]
     return filter_name, "|".join(ids), ids
 
 
+def _openalex_candidate_limit(
+    query: dict[str, Any], override: int | None = None
+) -> int:
+    value = override if override is not None else query.get(
+        "candidate_limit", DEFAULT_OPENALEX_CANDIDATE_LIMIT
+    )
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(
+            f"OpenAlex candidate_limit for {query.get('id', 'query')} must be one of "
+            f"{OPENALEX_CANDIDATE_LIMITS}"
+        )
+    if value not in OPENALEX_CANDIDATE_LIMITS:
+        raise ValueError(
+            f"OpenAlex candidate_limit for {query.get('id', 'query')} must be one of "
+            f"{OPENALEX_CANDIDATE_LIMITS}; got {value}"
+        )
+    return value
+
+
+def _collect_openalex_query_candidates(
+    client: OpenAlexClient,
+    query: dict[str, Any],
+    *,
+    filters: str,
+    api_key_configured: bool,
+    excluded_title_prefixes: Iterable[str],
+    candidate_limit: int,
+) -> tuple[list[dict[str, Any]], int, int | None]:
+    """Collect up to the query's accepted-candidate quota using cursor paging."""
+    candidates: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    cursor: str | None = "*"
+    raw_fetched = 0
+    total_count: int | None = None
+
+    while cursor and len(candidates) < candidate_limit:
+        response = client.search(
+            query["query"],
+            per_page=100,
+            filters=filters,
+            cursor=cursor,
+        )
+        raw_results = list(response.get("results") or [])
+        raw_fetched += len(raw_results)
+        meta = response.get("meta") or {}
+        if isinstance(meta.get("count"), int):
+            total_count = meta["count"]
+
+        for work in raw_results:
+            candidate = _candidate_from_openalex(
+                work,
+                query,
+                api_key_configured=api_key_configured,
+                excluded_title_prefixes=excluded_title_prefixes,
+            )
+            if candidate is None:
+                continue
+            identity = str(candidate["openalex_id"])
+            if identity in seen_ids:
+                continue
+            seen_ids.add(identity)
+            candidates.append(candidate)
+            if len(candidates) >= candidate_limit:
+                break
+
+        if len(candidates) >= candidate_limit or not raw_results:
+            break
+        next_cursor = meta.get("next_cursor")
+        cursor = str(next_cursor) if next_cursor else None
+
+    return candidates, raw_fetched, total_count
+
+
 def collect_openalex_candidates(
     queries: Iterable[dict[str, str]],
     *,
     api_key: str | None,
     cache_dir: Path,
     scope: dict[str, Any],
-    max_results_per_query: int,
+    max_results_per_query: int | None,
     refresh: bool = True,
 ) -> tuple[list[dict[str, Any]], list[SearchAttempt]]:
     """Search OpenAlex with or without a key and interleave query result lists."""
@@ -425,11 +500,33 @@ def collect_openalex_candidates(
     per_query_candidates: list[list[dict[str, Any]]] = []
     for query in queries:
         try:
-            response = client.search(
-                query["query"], per_page=max_results_per_query, filters=filters
+            candidate_limit = _openalex_candidate_limit(
+                query, override=max_results_per_query
             )
-            results = list(response.get("results") or [])
-            attempts.append(SearchAttempt(query["id"], "openalex", "ok", len(results)))
+            query_candidates, raw_fetched, total_count = (
+                _collect_openalex_query_candidates(
+                    client,
+                    query,
+                    filters=filters,
+                    api_key_configured=bool(api_key),
+                    excluded_title_prefixes=scope["exclude_title_prefixes"],
+                    candidate_limit=candidate_limit,
+                )
+            )
+            attempts.append(
+                SearchAttempt(
+                    query["id"],
+                    "openalex",
+                    "ok",
+                    len(query_candidates),
+                    (
+                        f"retained={len(query_candidates)}; fetched={raw_fetched}; "
+                        "total="
+                        f"{total_count if total_count is not None else 'unknown'}; "
+                        f"quota={candidate_limit}"
+                    ),
+                )
+            )
         except Exception as error:
             attempts.append(
                 SearchAttempt(
@@ -440,24 +537,14 @@ def collect_openalex_candidates(
                     f"{type(error).__name__}: {error}",
                 )
             )
-            results = []
-        query_candidates: list[dict[str, Any]] = []
-        for work in results:
-            candidate = _candidate_from_openalex(
-                work,
-                query,
-                api_key_configured=bool(api_key),
-                excluded_title_prefixes=scope["exclude_title_prefixes"],
-            )
-            if candidate is None:
-                continue
+            query_candidates = []
+        for candidate in query_candidates:
             candidate["discipline_constraint"] = {
                 "provider": "openalex",
                 "primary_topic_level": scope["openalex_primary_filter"]["level"],
                 "ids": configured_ids,
                 "labels": list(scope["openalex_primary_filter"]["labels"]),
             }
-            query_candidates.append(candidate)
         per_query_candidates.append(query_candidates)
 
     by_identity: dict[str, dict[str, Any]] = {}
@@ -830,6 +917,9 @@ def _strategy_fingerprint(
         [
             {
                 "query": str(item.get("query") or "").strip(),
+                "candidate_limit": item.get(
+                    "candidate_limit", DEFAULT_OPENALEX_CANDIDATE_LIMIT
+                ),
             }
             for item in queries
         ],
@@ -908,6 +998,7 @@ def _effective_retrieval_strategy(
                 raise ValueError(
                     f"retrieval strategy search_queries[{index}] needs id, label, and query"
                 )
+            _openalex_candidate_limit(query)
         if not isinstance(scope.get("openalex_primary_filter"), dict):
             raise ValueError(
                 "an OpenAlex retrieval strategy needs an openalex_primary_filter"
@@ -991,7 +1082,16 @@ def parse_args() -> argparse.Namespace:
         help="Explicit registry for this Skill installation or isolated test run.",
     )
     parser.add_argument("--target-papers", type=int, default=70)
-    parser.add_argument("--openalex-per-query", type=int, default=50)
+    parser.add_argument(
+        "--openalex-per-query",
+        type=int,
+        choices=OPENALEX_CANDIDATE_LIMITS,
+        default=None,
+        help=(
+            "Compatibility override for every OpenAlex query. Prefer the optional "
+            "per-query candidate_limit in the research profile or strategy."
+        ),
+    )
     parser.add_argument("--arxiv-per-query", type=int, default=60)
     parser.add_argument(
         "--review-candidate-limit",

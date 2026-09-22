@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from areaday_core import OPENALEX_CANDIDATE_LIMITS
+
 
 class ProfileValidationError(ValueError):
     """Raised before discovery when the conversational profile is incomplete."""
@@ -56,6 +58,14 @@ def validate_profile(profile: dict[str, Any]) -> None:
                 if query_id in seen_ids:
                     errors.append(f"duplicate search query id: {query_id}")
                 seen_ids.add(query_id)
+            if "candidate_limit" in item and (
+                isinstance(item.get("candidate_limit"), bool)
+                or item.get("candidate_limit") not in OPENALEX_CANDIDATE_LIMITS
+            ):
+                errors.append(
+                    f"search_queries[{index}].candidate_limit must be one of "
+                    f"{OPENALEX_CANDIDATE_LIMITS}"
+                )
 
     scope = profile.get("retrieval_scope")
     providers: list[str] = []
