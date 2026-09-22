@@ -1033,6 +1033,9 @@ function renderDueReviewEntry(count) {
 function showDueReviewNewWordSelection() {
   const available = availableNewWordCards();
   if (!available.length) return;
+  // 这个面板长在今日复习页里：如果此刻停在「这一组新词已经看完」的卡片上，
+  // 必须先把今日复习页亮出来、把完成卡收起来，否则点下去看不出任何变化。
+  showReviewHub();
   const defaultCount = Math.min(NEW_WORD_CHECK_BATCH_SIZE, available.length);
   byId("dueReviewNewWordCountInput").min = "1";
   byId("dueReviewNewWordCountInput").max = String(available.length);

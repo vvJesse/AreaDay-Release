@@ -232,6 +232,12 @@ outcomes and resumes. Never invent a fourth strategy. A terminal
 `corpus_unavailable` status means no usable PDF was obtained and ends the
 current run; it is not a successful initialization.
 
+Each OpenAlex search query may optionally set `candidate_limit` to exactly 50,
+100, 150, or 200. This is a per-query retained-candidate quota, not a fixed
+global search limit. Use 100 by default; choose 50 for lower-value query angles
+or 150/200 for strong, high-value query angles. The acquisition client uses cursor paging to
+reach the selected quota and records the fetched, retained, and total counts.
+
 The controller's `status.json` is authoritative. While `terminal` is `false`,
 the current task must continue:
 

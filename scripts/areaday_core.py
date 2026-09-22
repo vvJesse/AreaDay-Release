@@ -17,6 +17,8 @@ from typing import Any, Iterable
 
 
 OPENALEX_API = "https://api.openalex.org/works"
+OPENALEX_CANDIDATE_LIMITS = (50, 100, 150, 200)
+DEFAULT_OPENALEX_CANDIDATE_LIMIT = 100
 ARXIV_ID_RE = re.compile(
     r"(?:arxiv(?:\.org/(?:abs|pdf)/|:)|10\.48550/arxiv\.)("
     r"(?:[a-z][a-z.\-]+/\d{7})|(?:\d{4}\.\d{4,5})"
@@ -279,12 +281,16 @@ class OpenAlexClient:
         *,
         per_page: int,
         filters: str | None = None,
+        cursor: str | None = None,
     ) -> dict[str, Any]:
         params = {
             "search": query,
             "per_page": str(per_page),
-            "page": "1",
         }
+        if cursor is None:
+            params["page"] = "1"
+        else:
+            params["cursor"] = cursor
         if filters:
             params["filter"] = filters
         cache_identity = dict(params)

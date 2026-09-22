@@ -26,7 +26,10 @@ from continuous_workflow import _context_window, _verify_pdf_identity  # noqa: E
 from corpus_analysis import analyze_corpus, extract_pdf_text  # noqa: E402
 from corpus_selection import select_analysis_documents  # noqa: E402
 from research_profile import ProfileValidationError, validate_profile  # noqa: E402
-from areaday_core import extract_arxiv_id  # noqa: E402
+from areaday_core import (  # noqa: E402
+    DEFAULT_OPENALEX_CANDIDATE_LIMIT,
+    extract_arxiv_id,
+)
 from setup_dependencies import (  # noqa: E402
     CHINA_HF_MIRROR,
     OFFICIAL_HF_ENDPOINT,
@@ -83,7 +86,18 @@ class ProfileAndDiscoveryTests(unittest.TestCase):
         self.assertEqual(candidate_sufficiency_count(70), 100)
 
     def test_example_profile_is_confirmed_and_valid(self) -> None:
-        validate_profile(valid_test_profile())
+        profile = valid_test_profile()
+        profile["search_queries"][0]["candidate_limit"] = 200
+        validate_profile(profile)
+
+    def test_openalex_candidate_limit_accepts_only_the_four_retrieval_tiers(self) -> None:
+        profile = valid_test_profile()
+        profile["search_queries"][0]["candidate_limit"] = 75
+        with self.assertRaises(ProfileValidationError):
+            validate_profile(profile)
+
+    def test_openalex_default_candidate_limit_is_one_hundred(self) -> None:
+        self.assertEqual(DEFAULT_OPENALEX_CANDIDATE_LIMIT, 100)
 
     def test_unconfirmed_profile_is_rejected(self) -> None:
         profile = valid_test_profile()

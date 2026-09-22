@@ -15,9 +15,9 @@ The agent creates this JSON only after asking 3–4 follow-up questions and rece
     {"question": "Question asked in chat", "answer": "User's answer"}
   ],
   "search_queries": [
-    {"id": "q01", "label": "Human-readable angle", "query": "cross-disciplinary scholarly query"},
-    {"id": "q02", "label": "Human-readable angle", "query": "cross-disciplinary scholarly query"},
-    {"id": "q03", "label": "Human-readable angle", "query": "cross-disciplinary scholarly query"}
+    {"id": "q01", "label": "Human-readable angle", "query": "cross-disciplinary scholarly query", "candidate_limit": 100},
+    {"id": "q02", "label": "Human-readable angle", "query": "cross-disciplinary scholarly query", "candidate_limit": 50},
+    {"id": "q03", "label": "Human-readable angle", "query": "cross-disciplinary scholarly query", "candidate_limit": 150}
   ],
   "retrieval_scope": {
     "confirmed": true,
@@ -51,6 +51,7 @@ Rules:
 
 - `clarifications` must contain exactly 3 or 4 questions that were actually answered.
 - Generate 3–24 complementary search queries from the confirmed scope. This query expansion enables discovery; it is not a paper scoring or filtering stage.
+- `candidate_limit` is optional for each OpenAlex search query. When present, it must be exactly 50, 100, 150, or 200 and means the maximum number of accepted candidates retained for that query. Use 100 by default; choose 50 for lower-value query angles, or 150/200 when deeper retrieval is justified. The acquisition code uses cursor paging to reach the selected quota.
 - Derive the retrieval plan from the confirmed research scope. The agent owns providers, taxonomy IDs, search queries, and fallback order (after confirming the research scope, the user is told that they may leave the unattended task and may not be available for another technical-choice question). `retrieval_scope.confirmed` means that the plan stays within the research scope the user confirmed; it does not require a second technical approval round.
 - The ordinary default is English-language public full text, the most recent ten years, and at most 10 older foundational papers. Adapt those values to the research area and the user's answer; do not silently impose them when the user requests a different historical scope.
 - Choose OpenAlex with a configured API key, arXiv, or a useful combination autonomously. OpenAlex requires a personal API key: it has no anonymous mode and acquisition stops with a configuration error instead of continuing without one, so configure the key before the unattended operation. Keyed OpenAlex and arXiv are generally the more stable choices. Do not use Semantic Scholar.
