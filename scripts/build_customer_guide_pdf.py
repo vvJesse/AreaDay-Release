@@ -330,7 +330,7 @@ def draw_page(canvas, doc):
     canvas.line(20 * mm, 14 * mm, width - 20 * mm, 14 * mm)
     canvas.setFillColor(MUTED)
     canvas.setFont("AreaDayCN", 8)
-    footer = f"AreaDay v{DOCUMENT_VERSION}  ·  视频教程：guide.areaday.app"
+    footer = f"AreaDay v{DOCUMENT_VERSION}"
     canvas.drawString(20 * mm, 9.5 * mm, footer)
     canvas.drawRightString(width - 20 * mm, 9.5 * mm, f"第 {doc.page} 页")
     canvas.restoreState()
